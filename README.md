@@ -11,13 +11,16 @@ Serve via node.js "http-server" for getJSON to work.
 > http-server
 
 Then browse to http://localhost:8080
+
 ----------
+# Some links
+
 Bootstrap
-https://getbootstrap.com/docs/3.4/
-https://www.w3schools.com/bootstrap/bootstrap_ref_js_tab.asp
+* https://getbootstrap.com/docs/3.4/
+* https://www.w3schools.com/bootstrap/bootstrap_ref_js_tab.asp
 
 Google Charts
-https://developers.google.com/chart/interactive/docs/gallery/timeline
+* https://developers.google.com/chart/interactive/docs/gallery/timeline
 
 Timeline Component
-https://github.com/sanex3339/bootstrap-responsive-timeline
+* https://github.com/sanex3339/bootstrap-responsive-timeline
