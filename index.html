@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>FHIR Bundle Viewer</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Bootstrap 3.4 -->
+  <!-- <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script> -->
+  <link rel="stylesheet" href="bootstrap/3.4.1/css/bootstrap.min.css">
+  <link rel="stylesheet" href="css/timeline.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+  <script src="bootstrap/3.4.1/js/bootstrap.min.js"></script>
+
+  <!-- Google timeline chart -->
+  <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+
+  <style>
+      body {
+        font-family: roboto;
+      }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div id="title"><h2>FHIR Bundle Viewer</h2></div>
+
+  <div>
+      <p><input type="file" class="form-control-file" id="inputFile" onchange="newInputFile()"/></p>
+  </div>
+
+  <ul class="nav nav-pills" id="tabs">
+  </ul>
+
+  <div class="tab-content" id="divs">
+  </div>
+
+<script>
+var _data;
+$(document).ready(function(){
+    $.getJSON("synthea_bundle.json", function(data, status){
+        displayBundle(data);
+        google.charts.load('current', {'packages':['timeline']});
+        _data = data;
+        google.charts.setOnLoadCallback(drawChart);
+        drawTimeline();
+        drawVitals();
+    });
+});
+
+function newInputFile() {
+    var reader = new FileReader();
+    reader.onload = function(){
+        var data = JSON.parse(reader.result);
+        displayBundle(data);
+        _data = data;
+        drawChart();
+        drawTimeline();
+        drawVitals();
+    };
+    reader.readAsText(document.getElementById("inputFile").files[0]);
+}
+
+function displayBundle(data) {
+
+    // create title based on Patient
+    var entries = data.entry.filter(entry => { return entry.resource.resourceType == "Patient" });
+    if (entries.length > 0 && entries[0].resource != undefined) {
+        var patientname = entries[0].resource.name[0].given + " " + entries[0].resource.name[0].family;
+        document.getElementById("title").innerHTML = "<h2>FHIR Bundle Viewer for " + patientname + "</h2>";
+    }
+    else {
+        document.getElementById("title").innerHTML = "<h2>FHIR Bundle Viewer</h2>";
+    }
+
+    // clear tabs and pages
+    var tabs = "<li class=\"active\"><a data-toggle=\"tab\" href=\"#home\">Overview</a></li>";
+    tabs += "<li><a data-toggle=\"tab\" href=\"#home2\">Med Timeline</a></li>";
+    tabs += "<li><a data-toggle=\"tab\" href=\"#vitals\">Vital Signs</a></li>";
+    document.getElementById("tabs").innerHTML = tabs;
+
+    var homeDiv = "<div id=\"home\" class=\"tab-pane fade in active\"><h3>Overview</h3>";
+        homeDiv += "<div id=\"chart\" style=\"height: 600px;\"></div></div>";
+    homeDiv += "<div id=\"home2\" class=\"tab-pane fade in active\"><h3>Med Timeline</h3>";
+        homeDiv += "<div id=\"timeline\" style=\"height: 600px;\"></div></div>";
+    homeDiv += "<div id=\"vitals\" class=\"tab-pane fade in active\"><h3>Most Recent Vitals</h3>";
+        homeDiv += "<div id=\"vitals2\" style=\"height: 600px;;\"></div></div>";
+    document.getElementById("divs").innerHTML = homeDiv;
+
+    // pupulate tabs and pages
+    var resourceTypes = new Set(data.entry.map(item => item.resource.resourceType));
+    resourceTypes.forEach(resourceType => {
+        var entries = data.entry.filter(entry => { return entry.resource.resourceType == resourceType });
+        var resourceCount = entries.length;
+        var resourceTypeAndCount = resourceType + "<span class=\"badge\">" + resourceCount + "</span>";
+        document.getElementById("tabs").innerHTML += "<li><a data-toggle=\"tab\" href=\"#" + resourceType + "\">" + resourceTypeAndCount + "</a></li>";
+
+        var div = "<div id=\"" + resourceType + "\" class=\"tab-pane fade\"><h3>" + resourceType + " Entries</h3><table class=\"table table-striped table-hover\"><thead>";
+        switch(resourceType) {
+            case "Condition":
+                div += "<tr><th>Conditie</th><th>Date</th><th>Status</th></tr></thead><tbody>";
+                break;
+            case "Encounter":
+                div += "<tr><th>Type</th><th>Date</th><th>Status</th><th>Class</th><th>Conditions</th></tr></thead><tbody>";
+                break;
+            case "Procedure":
+                div += "<tr><th>Procedure</th><th>Date</th><th>Status</th></tr></thead><tbody>";
+                break;
+            case "MedicationRequest":
+                div += "<tr><th>Medication</th><th>Date</th><th>Status</th></tr></thead><tbody>";
+                break;
+            case "Immunization":
+                div += "<tr><th>Medication</th><th>Date</th><th>Status</th></tr></thead><tbody>";
+                break;
+            case "Observation":
+                div += "<tr><th>Category</th><th>Observation</th><th>Value</th><th>Date</th></tr></thead><tbody>";
+                break;
+            default:
+                div += "<tr><th>Entry</th></tr></thead><tbody>";
+                break;
+        }
+
+        entries.reverse().forEach(entry => {
+            var row = "";
+            switch(resourceType) {
+                case "Condition":
+                    if (!entry.resource.code) return;
+                    var clinicalStatus = entry.resource.clinicalStatus || "";
+                    var verificationStatus = entry.resource.verificationStatus || "";
+                    switch (clinicalStatus) {
+                        case "active":
+                            row += "<tr class=\"info\">";
+                            break;
+                        default:
+                            row += "<tr>";
+                            break;
+                    }
+                    row += "<td>" + entry.resource.code.coding[0].display + "</td>";
+                    // row += "<td>" + entry.resource.code.text + "</td>";
+                    row += "<td>" + new Date(entry.resource.onsetDateTime).toDateString() + "</td>";
+                    row += "<td><span class=\"label label-default\">" + clinicalStatus + "</span> " + verificationStatus + "</td>";
+                    row += "</tr>";
+                    break;
+                case "MedicationRequest":
+                    var status = entry.resource.status;
+                    switch (status) {
+                        case "active":
+                            row += "<tr class=\"info\">";
+                            break;
+                        default:
+                            row += "<tr>";
+                            break;
+                    }
+                    row += "<td>" + entry.resource.medicationCodeableConcept.text + "</td>";
+                    row += "<td>" + new Date(entry.resource.authoredOn).toDateString() + "</td>";
+                    row += "<td><span class=\"label label-default\">" + status + "</span></td>";
+                    row += "</tr>";
+                    break;
+                case "Encounter":
+                    row += "<tr>";
+                    row += "<td>" + entry.resource.type[0].text + "</td>";
+                    row += "<td>" + new Date(entry.resource.period.start).toDateString() + " - " + new Date(entry.resource.period.end).toDateString() + "</td>";
+                    row += "<td><span class=\"label label-default\">" + entry.resource.status + "</span></td>";
+                    row += "<td><span class=\"label label-default\">" + entry.resource.class.code + "</span></td>";
+                    row += "<td><ul class=\"list-group\">";
+                    var conditions = data.entry.filter(_entry => { return _entry.resource.resourceType == "Condition" && _entry.resource.context.reference == entry.fullUrl });
+                    conditions.forEach(_entry => {
+                        row += "<li class=\"list-group-item\">" + _entry.resource.code.text + "</li>";
+                    });
+                    row += "</ul></td>";
+                    row += "</tr>";
+                    break;
+                case "Procedure":
+                    row += "<tr>";
+                    row += "<td>" + entry.resource.code.text + "</td>";
+                    row += "<td>" + new Date(entry.resource.performedPeriod.start).toDateString() + " - " + new Date(entry.resource.performedPeriod.end).toDateString() + "</td>";
+                    row += "<td><span class=\"label label-default\">" + entry.resource.status + "</span></td>";
+                    row += "</tr>";
+                    break;
+                case "Immunization":
+                    row += "<tr>";
+                    row += "<td>" + entry.resource.vaccineCode.text + "</td>";
+                    row += "<td>" + new Date(entry.resource.date).toDateString() + "</td>";
+                    row += "<td><span class=\"label label-default\">" + entry.resource.status + "</span></td>";
+                    row += "</tr>";
+                    break;
+                case "Observation":
+                    row += "<tr>";
+                    if (entry.resource.category[0]) {
+                        row += "<td>" + entry.resource.category[0].coding[0].display + "</td>";
+                    }
+                    else {
+                        row += "<td></td>";
+                    }
+                    row += "<td>" + entry.resource.code.coding[0].display + "</td>";
+                    if (entry.resource.valueQuantity) {
+                        row += "<td>" + entry.resource.valueQuantity.value + " " + entry.resource.valueQuantity.unit + "</td>";
+                    }
+                    else {
+                        row += "<td></td>";
+                    }
+                    row += "<td>" + new Date(entry.resource.effectiveDateTime).toDateString() + "</td>";
+                    row += "</tr>";
+                    break;
+                default:
+                    row += "<tr>";
+                    row += "<td>" + entry + "</td>";
+                    row += "</tr>";
+                    break;
+            }
+            div += row;
+        });
+        div += "</tbody></table></div></div>";
+        document.getElementById("divs").innerHTML += div;
+    });    
+}
+
+function drawChart() {
+    var container = document.getElementById('chart');
+    var chart = new google.visualization.Timeline(container);
+    var dataTable = new google.visualization.DataTable();
+
+    dataTable.addColumn({ type: 'string', id: 'Encounter' });
+    dataTable.addColumn({ type: 'string', id: 'Type' });
+    dataTable.addColumn({ type: 'date', id: 'Start' });
+    dataTable.addColumn({ type: 'date', id: 'End' });
+
+    var fromDate = new Date(2010,0,0);
+
+    var entries = _data.entry.filter(entry => { return entry.resource.resourceType == "Encounter" });
+    entries.forEach(entry => {
+        var type = entry.resource.type[0].text;
+        var start = new Date(entry.resource.period.start);
+        var end = new Date(entry.resource.period.end);
+        if (start > fromDate) {
+            dataTable.addRow([ "Encounter", type, start, end ]);
+        }
+    });
+    var entries = _data.entry.filter(entry => { return entry.resource.resourceType == "Condition" });
+    entries.forEach(entry => {
+        if (!entry.resource.code) return;
+        var type = entry.resource.code.coding[0].display;
+        // var type = entry.resource.code.text;
+        var start = new Date(entry.resource.onsetDateTime);
+        var end = new Date(entry.resource.assertedDate);
+        if (start > fromDate) {
+            dataTable.addRow([ "Condition", type, start, end ]);
+        }
+    });
+    var entries = _data.entry.filter(entry => { return entry.resource.resourceType == "Procedure" });
+    entries.forEach(entry => {
+        var type = entry.resource.code.text;
+        var start = new Date(entry.resource.performedPeriod.start);
+        var end = new Date(entry.resource.performedPeriod.end);
+        if (start > fromDate) {
+            dataTable.addRow([ "Procedure", type, start, end ]);
+        }
+    });
+    var entries = _data.entry.filter(entry => { return entry.resource.resourceType == "Immunization" });
+    entries.forEach(entry => {
+        var type = entry.resource.vaccineCode.text;
+        var date = new Date(entry.resource.date);
+        if (date > fromDate) {
+            dataTable.addRow([ "Immunization", type, date, date ]);
+        }
+    });
+
+    var options = {
+      timeline: { groupByRowLabel: true }
+    };
+    chart.draw(dataTable, options);
+}
+
+function drawTimeline() {
+    var container = document.getElementById('timeline');
+    var timeline = "<div class=\"timeline timeline-line-dotted\">";
+    timeline += "<span class=\"timeline-label\"><span class=\"label label-primary\">e.o.r.</span></span>";
+
+    var entries = _data.entry.filter(entry => { return entry.resource.resourceType == "MedicationRequest" });
+    var lastdate = "";
+    entries.reverse().forEach(entry => {
+        // Procedure
+        // var type = entry.resource.code.text;
+        // var start = new Date(entry.resource.performedPeriod.start);
+        // MedicationRequest
+        var type = entry.resource.medicationCodeableConcept.text;
+        var start = new Date(entry.resource.authoredOn);
+        // Condition
+        // var type = entry.resource.code.coding[0].display;
+        // var start = new Date(entry.resource.onsetDateTime);
+        // var end = new Date(entry.resource.assertedDate);
+
+        var date = start.getFullYear() + '.' + (start.getMonth()+1);
+
+        if (date != lastdate) {
+            lastdate = date;
+            timeline += "<span class=\"timeline-label\"><span class=\"label label-info\">" + date + "</span></span>";
+        }
+
+        timeline += "<div class=\"timeline-item\"><div class=\"timeline-point timeline-point-blank\"></div>";
+        switch (entry.resource.status) {
+            case "active":
+                timeline += "<div class=\"timeline-event timeline-event-warning\"><span class=\"label label-warning\">active</span>";
+                break;
+            default:
+                timeline += "<div class=\"timeline-event timeline-event-primary\">";
+                break;
+        }
+        timeline += "<div class=\"timeline-heading\">" + start.toDateString() + "<h4>" + type + "</h4></div>";
+
+        if (entry.resource.reasonReference) {
+            var reasonRef = entry.resource.reasonReference[0].reference;
+            if (reasonRef) {
+                var reasonRefEntry = _data.entry.filter(entry => { return entry.fullUrl == reasonRef && entry.resource.resourceType == "Condition" });
+                var reason = reasonRefEntry[0].resource.code.text;
+                timeline += "<div class=\"timeline-footer\">Reason: " + reason + "</div>";
+            }
+        }
+
+        timeline += "</div>";
+        timeline += "</div>";
+    });
+    timeline += "<span class=\"timeline-label\"><span class=\"label label-primary\">s.o.r.</span></span>";
+
+    container.innerHTML = timeline;
+}
+
+function drawVitals() {
+    var container = document.getElementById('vitals2');
+    var vitals = "<div class=\"container-fluid\"><div class=\"row\">";
+
+    var lastdate = [];
+
+    var entries = _data.entry.filter(entry => { return entry.resource.resourceType == "Observation" });
+    entries.reverse().forEach(entry => {
+        if (entry.resource.category[0] == undefined) return;
+        if (entry.resource.category[0].coding[0].display != "vital-signs") return;
+
+        if (entry.resource.component) {
+            var date = new Date(entry.resource.effectiveDateTime);
+
+            entry.resource.component.forEach(component => {
+                var ccode = component.code.coding[0].display.substring(0,20);
+                var cvalue = component.valueQuantity.value;
+                var cunit = component.valueQuantity.unit;
+                if (lastdate[ccode] == undefined || date > lastdate[ccode]) {
+                    lastdate[ccode] = date;
+                    vitals += "<div class=\"col-md-2\">";
+                    vitals += "<div class=\"well well-sm\">";
+                    vitals += "<p>" + ccode + "</p>";
+                    vitals += "<small><font color=\"#cccccc\">" + date.toDateString() + "</font></small><h3>" + cvalue + "<small> " + cunit + "</small></h3>";
+                    vitals += "</div></div>";
+                }
+            });
+        }
+
+        if (entry.resource.valueQuantity == undefined) return;
+        var code = entry.resource.code.coding[0].display.substring(0,20);
+        var value = entry.resource.valueQuantity.value;
+        var unit = entry.resource.valueQuantity.unit;
+        var date = new Date(entry.resource.effectiveDateTime);
+
+        if (lastdate[code] == undefined || date > lastdate[code]) {
+            lastdate[code] = date;
+            vitals += "<div class=\"col-md-2\">";
+            vitals += "<div class=\"well well-sm\">";
+            vitals += "<p>" + code + "</p>";
+            vitals += "<small><font color=\"#cccccc\">" + date.toDateString() + "</font></small><h3>" + value + "<small> " + unit + "</small></h3>";
+            vitals += "</div></div>";
+        }
+    });
+
+    vitals += "</div></div>";
+
+    container.innerHTML = vitals;
+}
+</script>
+
+</body>
+</html>
