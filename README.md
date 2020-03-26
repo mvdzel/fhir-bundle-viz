@@ -13,7 +13,7 @@ Serve via node.js "http-server" for getJSON to work.
 Then browse to http://localhost:8080
 
 ----------
-# Some links
+# Links of included libraries
 
 Bootstrap
 * https://getbootstrap.com/docs/3.4/
@@ -24,3 +24,9 @@ Google Charts
 
 Timeline Component
 * https://github.com/sanex3339/bootstrap-responsive-timeline
+
+Sparkline
+* https://omnipotent.net/jquery.sparkline
+
+Web Speech API
+* https://developer.mozilla.org/en-US/docs/Web/API/Web_Speech_API/Using_the_Web_Speech_API
