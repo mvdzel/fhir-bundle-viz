@@ -474,6 +474,10 @@ recognition.onerror = function (event) { };
 recognition.onend = function () {
     recognition.stop();
     var tabname = output.innerHTML.toLowerCase();
+    if (document.getElementById(tabname) == undefined) {
+        speak("Unknown tab");
+        return;
+    }
     speak("Showing the " + tabname + " tab");
     $('.nav-pills a[href="#' + tabname + '"]').tab('show')
 }
