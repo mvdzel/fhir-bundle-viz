@@ -76,7 +76,7 @@ function displayBundle(data) {
 
     // create title based on Patient
     var entries = data.entry.filter(entry => { return entry.resource.resourceType == "Patient" });
-    if (entries.length > 0 && entries[0].resource != undefined) {
+    if (entries.length > 0 && entries[0].resource && entries[0].resource.name) {
         var patientname = entries[0].resource.name[0].given + " " + entries[0].resource.name[0].family;
         document.getElementById("title").innerHTML = "<h2>FHIR Bundle Viewer for " + patientname + "</h2>";
         speak("Viewing patient " + patientname);
@@ -153,8 +153,8 @@ function displayBundle(data) {
                             row += "<tr>";
                             break;
                     }
-                    row += "<td>" + entry.resource.code.coding[0].display + "</td>";
-                    // row += "<td>" + entry.resource.code.text + "</td>";
+                    var code = entry.resource.code.text || entry.resource.code.coding[0].display;
+                    row += "<td>" + code + "</td>";
                     row += "<td>" + new Date(entry.resource.onsetDateTime).toDateString() + "</td>";
                     row += "<td><span class=\"label label-default\">" + clinicalStatus + "</span> " + verificationStatus + "</td>";
                     row += "</tr>";
@@ -211,13 +211,22 @@ function displayBundle(data) {
                         row += "<td></td>";
                     }
                     row += "<td>" + entry.resource.code.coding[0].display + "</td>";
+                    var value = "";
                     if (entry.resource.valueQuantity) {
-                        row += "<td>" + entry.resource.valueQuantity.value + " " + entry.resource.valueQuantity.unit + "</td>";
+                        value = entry.resource.valueQuantity.value + " " + entry.resource.valueQuantity.unit;
                     }
-                    else {
-                        row += "<td></td>";
+                    else if (entry.resource.valueString) {
+                        value = entry.resource.valueString;
                     }
-                    row += "<td>" + new Date(entry.resource.effectiveDateTime).toDateString() + "</td>";
+                    row += "<td>" + value + "</td>";
+                    var date = "";
+                    if (entry.resource.effectiveDateTime) {
+                        date = new Date(entry.resource.effectiveDateTime).toDateString();
+                    }
+                    else if (entry.resource.effectivePeriod) {
+                        date = new Date(entry.resource.effectivePeriod.start).toDateString() + " - " + new Date(entry.resource.effectivePeriod.end).toDateString();
+                    }
+                    row += "<td>" + date + "</td>";
                     row += "</tr>";
                     break;
                 case "Organization":
@@ -268,12 +277,11 @@ function drawChart() {
     var entries = _data.entry.filter(entry => { return entry.resource.resourceType == "Condition" });
     entries.forEach(entry => {
         if (!entry.resource.code) return;
-        var type = entry.resource.code.coding[0].display;
-        // var type = entry.resource.code.text;
+        var code = entry.resource.code.text || entry.resource.code.coding[0].display;
         var start = new Date(entry.resource.onsetDateTime);
         var end = new Date(entry.resource.assertedDate);
         if (start > fromDate) {
-            dataTable.addRow([ "Condition", type, start, end ]);
+            dataTable.addRow([ "Condition", code, start, end ]);
         }
     });
     var entries = _data.entry.filter(entry => { return entry.resource.resourceType == "Procedure" });
