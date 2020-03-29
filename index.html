@@ -463,6 +463,7 @@ window.addEventListener('load', initAudio );
 var recognition = new webkitSpeechRecognition();
 recognition.continuous = false;
 recognition.interimResults = true;
+recognition.lang = "en-US";
 recognition.onstart = function () {
     output.innerHTML = "Say a tab name ('timeline' for Med Timeline, 'vitals' for Vital Signs)...";
 };
@@ -481,7 +482,7 @@ recognition.onresult = function (event) {
 recognition.onerror = function (event) { };
 recognition.onend = function () {
     recognition.stop();
-    var tabname = output.innerHTML.toLowerCase();
+    var tabname = output.innerHTML.replace(' ','').toLowerCase();
     if (document.getElementById(tabname) == undefined) {
         speak("Unknown tab");
         return;
@@ -492,6 +493,7 @@ recognition.onend = function () {
 
 function speak(txt) {
     var msg = new SpeechSynthesisUtterance(txt);
+    msg.lang = "en-US";
     window.speechSynthesis.speak(msg);
 }
 </script>
