@@ -77,7 +77,15 @@ function displayBundle(data) {
     // create title based on Patient
     var entries = data.entry.filter(entry => { return entry.resource.resourceType == "Patient" });
     if (entries.length > 0 && entries[0].resource && entries[0].resource.name) {
-        var patientname = entries[0].resource.name[0].given + " " + entries[0].resource.name[0].family;
+        var patient = entries[0].resource;
+        var age;
+        if (patient.deceasedDateTime) {
+            age = new Date(patient.deceasedDateTime).getFullYear() - new Date(patient.birthDate).getFullYear() + " deceased";
+        }
+        else {
+            age = new Date().getFullYear() - new Date(patient.birthDate).getFullYear();
+        }
+        var patientname = patient.name[0].given + " " + patient.name[0].family + " " + patient.gender + " " + age;
         document.getElementById("title").innerHTML = "<h2>FHIR Bundle Viewer for " + patientname + "</h2>";
         speak("Viewing patient " + patientname);
     }
@@ -113,7 +121,7 @@ function displayBundle(data) {
                 div += "<tr><th>Conditie</th><th>Date</th><th>Status</th></tr></thead><tbody>";
                 break;
             case "Encounter":
-                div += "<tr><th>Type</th><th>Date</th><th>Status</th><th>Class</th><th>Conditions</th></tr></thead><tbody>";
+                div += "<tr><th>Type</th><th>Date</th><th>Status</th><th>Class</th><th>Conditions</th><th>Procedures</th></tr></thead><tbody>";
                 break;
             case "Procedure":
                 div += "<tr><th>Procedure</th><th>Date</th><th>Status</th></tr></thead><tbody>";
@@ -176,13 +184,19 @@ function displayBundle(data) {
                     break;
                 case "Encounter":
                     row += "<tr>";
-                    row += "<td>" + entry.resource.type[0].text + "</td>";
+                    row += "<td>" + (entry.resource.type[0].text || "") + "</td>";
                     row += "<td>" + new Date(entry.resource.period.start).toDateString() + " - " + new Date(entry.resource.period.end).toDateString() + "</td>";
                     row += "<td><span class=\"label label-default\">" + entry.resource.status + "</span></td>";
                     row += "<td><span class=\"label label-default\">" + entry.resource.class.code + "</span></td>";
                     row += "<td><ul class=\"list-group\">";
                     var conditions = data.entry.filter(_entry => { return _entry.resource.resourceType == "Condition" && _entry.resource.context.reference == entry.fullUrl });
                     conditions.forEach(_entry => {
+                        row += "<li class=\"list-group-item\">" + _entry.resource.code.text + "</li>";
+                    });
+                    row += "</ul></td>";
+                    row += "<td><ul class=\"list-group\">";
+                    var procedures = data.entry.filter(_entry => { return _entry.resource.resourceType == "Procedure" && _entry.resource.context.reference == entry.fullUrl });
+                    procedures.forEach(_entry => {
                         row += "<li class=\"list-group-item\">" + _entry.resource.code.text + "</li>";
                     });
                     row += "</ul></td>";
@@ -258,16 +272,16 @@ function drawChart() {
     var chart = new google.visualization.Timeline(container);
     var dataTable = new google.visualization.DataTable();
 
-    dataTable.addColumn({ type: 'string', id: 'Encounter' });
+    dataTable.addColumn({ type: 'string', id: 'Resource' });
     dataTable.addColumn({ type: 'string', id: 'Type' });
     dataTable.addColumn({ type: 'date', id: 'Start' });
     dataTable.addColumn({ type: 'date', id: 'End' });
 
-    var fromDate = new Date(2010,0,0);
+    var fromDate = new Date(2000,0,0);
 
     var entries = _data.entry.filter(entry => { return entry.resource.resourceType == "Encounter" });
     entries.forEach(entry => {
-        var type = entry.resource.type[0].text;
+        var type = entry.resource.type[0].text || "";
         var start = new Date(entry.resource.period.start);
         var end = new Date(entry.resource.period.end);
         if (start > fromDate) {
@@ -286,11 +300,11 @@ function drawChart() {
     });
     var entries = _data.entry.filter(entry => { return entry.resource.resourceType == "Procedure" });
     entries.forEach(entry => {
-        var type = entry.resource.code.text;
+        var code = entry.resource.code.text;
         var start = new Date(entry.resource.performedPeriod.start);
         var end = new Date(entry.resource.performedPeriod.end);
         if (start > fromDate) {
-            dataTable.addRow([ "Procedure", type, start, end ]);
+            dataTable.addRow([ "Procedure", code, start, end ]);
         }
     });
     var entries = _data.entry.filter(entry => { return entry.resource.resourceType == "Immunization" });
