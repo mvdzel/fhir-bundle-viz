@@ -7,7 +7,7 @@
 
   <link rel="stylesheet" href="bootstrap/3.4.1/css/bootstrap.min.css">
   <link rel="stylesheet" href="css/timeline.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.0-2/css/all.min.css">
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
   <script src="bootstrap/3.4.1/js/bootstrap.min.js"></script>
   <script src="jquery.sparkline.min.js"></script>
@@ -136,10 +136,13 @@ function displayBundle(data) {
                 div += "<tr><th>Category</th><th>Observation</th><th>Value</th><th>Date</th></tr></thead><tbody>";
                 break;
             case "Organization":
-                div += "<tr><th>Name</th><th>Type</th></tr></thead><tbody>";
+                div += "<tr><th>Name</th><th>City</th><th>Type</th></tr></thead><tbody>";
                 break;
             case "Practitioner":
-                div += "<tr><th>Name</th></tr></thead><tbody>";
+                div += "<tr><th>Name</th><th>Address</th></tr></thead><tbody>";
+                break;
+            case "Claim":
+                div += "<tr><th>Item</th><th>Cost</th></tr></thead><tbody>";
                 break;
             default:
                 div += "<tr><th>Entry</th></tr></thead><tbody>";
@@ -246,17 +249,39 @@ function displayBundle(data) {
                 case "Organization":
                     row += "<tr>";
                     row += "<td>" + entry.resource.name + "</td>";
+                    row += "<td>" + entry.resource.address[0].city + "</td>";
                     row += "<td>" + entry.resource.type[0].text + "</td>";
                     row += "</tr>";
                     break;
                 case "Practitioner":
                     row += "<tr>";
                     row += "<td>" + Object.values(entry.resource.name[0]).join(', ') + "</td>";
+                    row += "<td>" + Object.values(entry.resource.address[0]).join(', ') + "</td>";
+                    row += "</tr>";
+                    break;
+                case "Claim":
+                    row += "<tr>";
+                    if(entry.resource.procedure) {
+                        var procedures = data.entry.filter(_entry => { return _entry.resource.resourceType == "Procedure" && entry.resource.procedure[0].procedureReference.reference == _entry.fullUrl });
+                        row += "<td><i class='fa fa-procedures'></i> " + procedures[0].resource.code.text + "</td>";
+                    }
+                    else if(entry.resource.prescription) {
+                        var prescriptions = data.entry.filter(_entry => { return _entry.resource.resourceType == "MedicationRequest" && entry.resource.prescription.reference == _entry.fullUrl });
+                        row += "<td><i class='fa fa-prescription'></i> " + prescriptions[0].resource.medicationCodeableConcept.text + "</td>";
+                    }
+                    else if(entry.resource.diagnosis) {
+                        var diagnosis = data.entry.filter(_entry => { return _entry.resource.resourceType == "Condition" && entry.resource.diagnosis[0].diagnosisReference.reference == _entry.fullUrl });
+                        row += "<td><i class='fa fa-user-md'></i> " + diagnosis[0].resource.code.text  + "</td>";
+                    }
+                    else {
+                        row += "<td></td>";
+                    }
+                    row += "<td>" + entry.resource.total.value + " " + entry.resource.total.code + "</td>";
                     row += "</tr>";
                     break;
                 default:
                     row += "<tr>";
-                    row += "<td>" + entry + "</td>";
+                    row += "<td>" + entry.resource.id + "</td>";
                     row += "</tr>";
                     break;
             }

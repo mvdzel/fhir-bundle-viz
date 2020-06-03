@@ -30,3 +30,7 @@ Sparkline
 
 Web Speech API
 * https://developer.mozilla.org/en-US/docs/Web/API/Web_Speech_API/Using_the_Web_Speech_API
+
+Font Awasome
+* https://fontawesome.com/icons
+* https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.0-2/css/all.min.css
