@@ -292,7 +292,7 @@ function displayBundle(data) {
                     break;
                 case "CarePlan":
                     row += "<tr>";
-                    row += "<td>" + entry.resource.category.text + "</td>";
+                    row += "<td>" + entry.resource.category[0].text + "</td>";
                     row += "</tr>";
                     break;
                 default:
