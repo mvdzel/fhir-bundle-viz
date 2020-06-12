@@ -147,6 +147,9 @@ function displayBundle(data) {
             case "CarePlan":
                 div += "<tr><th>Category</th></tr></thead><tbody>";
                 break;
+            case "ImagingStudy":
+                div += "<tr><th>Modality</th></tr></thead><tbody>";
+                break;
             default:
                 div += "<tr><th>Entry</th></tr></thead><tbody>";
                 break;
@@ -293,6 +296,11 @@ function displayBundle(data) {
                 case "CarePlan":
                     row += "<tr>";
                     row += "<td>" + entry.resource.category[0].text + "</td>";
+                    row += "</tr>";
+                    break;
+                case "ImagingStudy":
+                    row += "<tr>";
+                    row += "<td>" + entry.resource.series[0].modality.display + " (" + entry.resource.series[0].modality.code + ")</td>";
                     row += "</tr>";
                     break;
                 default:
