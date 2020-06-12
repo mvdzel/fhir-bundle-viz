@@ -55,7 +55,8 @@ $(document).ready(function(){
         google.charts.load('current', {'packages':['timeline']});
         google.charts.setOnLoadCallback(drawChart);
         drawTimeline();
-        drawVitals();
+        drawObsTiles("container-vitals", "vital-signs");
+        drawObsTiles("container-labs", "laboratory");
     });
 });
 
@@ -67,7 +68,8 @@ function newInputFile() {
         _data = data;
         drawChart();
         drawTimeline();
-        drawVitals();
+        drawObsTiles("container-vitals", "vital-signs");
+        drawObsTiles("container-labs", "laboratory");
     };
     reader.readAsText(document.getElementById("inputFile").files[0]);
 }
@@ -97,6 +99,7 @@ function displayBundle(data) {
     var tabs = "<li class=\"active\"><a data-toggle=\"tab\" href=\"#overview\">Overview</a></li>";
     tabs += "<li><a data-toggle=\"tab\" href=\"#timeline\">Med Timeline</a></li>";
     tabs += "<li><a data-toggle=\"tab\" href=\"#vitals\">Vital Signs</a></li>";
+    tabs += "<li><a data-toggle=\"tab\" href=\"#labs\">Laboratory</a></li>";
     document.getElementById("tabs").innerHTML = tabs;
 
     var homeDiv = "<div id=\"overview\" class=\"tab-pane fade in active\"><h3>Overview</h3>";
@@ -105,6 +108,8 @@ function displayBundle(data) {
         homeDiv += "<div id=\"container-timeline\" style=\"height: 600px;\"></div></div>";
     homeDiv += "<div id=\"vitals\" class=\"tab-pane fade in active\"><h3>Most Recent Vitals</h3>";
         homeDiv += "<div id=\"container-vitals\" style=\"height: 600px;;\"></div></div>";
+    homeDiv += "<div id=\"labs\" class=\"tab-pane fade in active\"><h3>Laboratory</h3>";
+        homeDiv += "<div id=\"container-labs\" style=\"height: 600px;;\"></div></div>";
     document.getElementById("divs").innerHTML = homeDiv;
 
     // pupulate tabs and pages
@@ -425,61 +430,61 @@ function drawTimeline() {
     container.innerHTML = timeline;
 }
 
-function drawVitals() {
-    var container = document.getElementById('container-vitals');
-    var vitals = "<div class=\"container-fluid\"><div class=\"row\">";
+function drawObsTiles(_containerName, _category) {
+    var container = document.getElementById(_containerName);
+    var tiles = "<div class=\"container-fluid\"><div class=\"row\">";
 
-    // create vital tiles
+    // create obs tiles
     var lastdate = [];
     var entries = _data.entry.filter(entry => { return entry.resource.resourceType == "Observation" });
     entries.reverse().forEach(entry => {
         if (entry.resource.category[0] == undefined) return;
-        if (entry.resource.category[0].coding[0].display != "vital-signs") return;
+        if (entry.resource.category[0].coding[0].display != _category) return;
 
         if (entry.resource.component) {
             var date = new Date(entry.resource.effectiveDateTime);
 
             entry.resource.component.forEach(component => {
-                var ccode = component.code.coding[0].display.substring(0,20);
+                var ccode = component.code.coding[0].display.substring(0,30);
                 var cvalue = component.valueQuantity.value;
                 var cunit = component.valueQuantity.unit;
                 if (lastdate[ccode] == undefined || date > lastdate[ccode]) {
                     lastdate[ccode] = date;
-                    vitals += "<div class=\"col-md-2\">";
-                    vitals += "<div class=\"well well-sm\">";
-                    vitals += "<p>" + ccode + "</p>";
-                    vitals += "<small><font color=\"#cccccc\">" + date.toDateString() + "</font></small><h3>" + cvalue + "<small> " + cunit + "</small></h3>";
-                    vitals += "<span id=\"spark" + component.code.coding[0].code + "\">...</span>";
-                    vitals += "</div></div>";
+                    tiles += "<div class=\"col-md-2\">";
+                    tiles += "<div class=\"well well-sm\" style='white-space: nowrap; overflow: hidden;'>";
+                    tiles += "<p>" + ccode + "</p>";
+                    tiles += "<small><font color=\"#cccccc\">" + date.toDateString() + "</font></small><h3>" + cvalue + "<small> " + cunit + "</small></h3>";
+                    tiles += "<span id=\"spark" + component.code.coding[0].code + "\">...</span>";
+                    tiles += "</div></div>";
                 }
             });
         }
 
         if (entry.resource.valueQuantity == undefined) return;
-        var code = entry.resource.code.coding[0].display.substring(0,20);
+        var code = entry.resource.code.coding[0].display.substring(0,30);
         var value = entry.resource.valueQuantity.value;
         var unit = entry.resource.valueQuantity.unit;
         var date = new Date(entry.resource.effectiveDateTime);
 
         if (lastdate[code] == undefined || date > lastdate[code]) {
             lastdate[code] = date;
-            vitals += "<div class=\"col-md-2\">";
-            vitals += "<div class=\"well well-sm\">";
-            vitals += "<p>" + code + "</p>";
-            vitals += "<small><font color=\"#cccccc\">" + date.toDateString() + "</font></small><h3>" + value + "<small> " + unit + "</small></h3>";
-            vitals += "<span id=\"spark" + entry.resource.code.coding[0].code + "\">...</span>";
-            vitals += "</div></div>";
+            tiles += "<div class=\"col-md-2\">";
+            tiles += "<div class=\"well well-sm\" style='white-space: nowrap; overflow: hidden;'>";
+            tiles += "<p>" + code + "</p>";
+            tiles += "<small><font color=\"#cccccc\">" + date.toDateString() + "</font></small><h3>" + value + "<small> " + unit + "</small></h3>";
+            tiles += "<span id=\"spark" + entry.resource.code.coding[0].code + "\">...</span>";
+            tiles += "</div></div>";
         }
     });
-    vitals += "</div></div>";
-    container.innerHTML = vitals;
+    tiles += "</div></div>";
+    container.innerHTML = tiles;
 
     // create vital sparks
     var sparkValues = {};
     var entries = _data.entry.filter(entry => { return entry.resource.resourceType == "Observation" });
     entries.forEach(entry => {
         if (entry.resource.category[0] == undefined) return;
-        if (entry.resource.category[0].coding[0].display != "vital-signs") return;
+        if (entry.resource.category[0].coding[0].display != _category) return;
 
         if (entry.resource.component) {
             entry.resource.component.forEach(component => {
