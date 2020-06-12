@@ -121,7 +121,7 @@ function displayBundle(data) {
                 div += "<tr><th>Conditie</th><th>Date</th><th>Status</th></tr></thead><tbody>";
                 break;
             case "Encounter":
-                div += "<tr><th>Type</th><th>Date</th><th>Status</th><th>Class</th><th>Conditions</th><th>Procedures</th></tr></thead><tbody>";
+                div += "<tr><th>Type</th><th>Date</th><th>Status</th><th>Class</th><th>Procedures</th><th>Conditions</th></tr></thead><tbody>";
                 break;
             case "Procedure":
                 div += "<tr><th>Procedure</th><th>Date</th><th>Status</th></tr></thead><tbody>";
@@ -143,6 +143,9 @@ function displayBundle(data) {
                 break;
             case "Claim":
                 div += "<tr><th>Item</th><th>Cost</th></tr></thead><tbody>";
+                break;
+            case "CarePlan":
+                div += "<tr><th>Category</th></tr></thead><tbody>";
                 break;
             default:
                 div += "<tr><th>Entry</th></tr></thead><tbody>";
@@ -166,7 +169,12 @@ function displayBundle(data) {
                     }
                     var code = entry.resource.code.text || entry.resource.code.coding[0].display;
                     row += "<td>" + code + "</td>";
-                    row += "<td>" + new Date(entry.resource.onsetDateTime).toDateString() + "</td>";
+                    if (entry.resource.abatementDateTime) {
+                        row += "<td>" + new Date(entry.resource.onsetDateTime).toDateString() + " - " + new Date(entry.resource.abatementDateTime).toDateString() + "</td>";
+                    }
+                    else {
+                        row += "<td>" + new Date(entry.resource.onsetDateTime).toDateString() + "</td>";
+                    }
                     row += "<td><span class=\"label label-default\">" + clinicalStatus + "</span> " + verificationStatus + "</td>";
                     row += "</tr>";
                     break;
@@ -192,14 +200,14 @@ function displayBundle(data) {
                     row += "<td><span class=\"label label-default\">" + entry.resource.status + "</span></td>";
                     row += "<td><span class=\"label label-default\">" + entry.resource.class.code + "</span></td>";
                     row += "<td><ul class=\"list-group\">";
-                    var conditions = data.entry.filter(_entry => { return _entry.resource.resourceType == "Condition" && _entry.resource.context.reference == entry.fullUrl });
-                    conditions.forEach(_entry => {
+                    var procedures = data.entry.filter(_entry => { return _entry.resource.resourceType == "Procedure" && _entry.resource.context.reference == entry.fullUrl });
+                    procedures.forEach(_entry => {
                         row += "<li class=\"list-group-item\">" + _entry.resource.code.text + "</li>";
                     });
                     row += "</ul></td>";
                     row += "<td><ul class=\"list-group\">";
-                    var procedures = data.entry.filter(_entry => { return _entry.resource.resourceType == "Procedure" && _entry.resource.context.reference == entry.fullUrl });
-                    procedures.forEach(_entry => {
+                    var conditions = data.entry.filter(_entry => { return _entry.resource.resourceType == "Condition" && _entry.resource.context.reference == entry.fullUrl });
+                    conditions.forEach(_entry => {
                         row += "<li class=\"list-group-item\">" + _entry.resource.code.text + "</li>";
                     });
                     row += "</ul></td>";
@@ -234,6 +242,9 @@ function displayBundle(data) {
                     }
                     else if (entry.resource.valueString) {
                         value = entry.resource.valueString;
+                    }
+                    else if (entry.resource.valueCodeableConcept) {
+                        value = entry.resource.valueCodeableConcept.text;
                     }
                     row += "<td>" + value + "</td>";
                     var date = "";
@@ -277,6 +288,11 @@ function displayBundle(data) {
                         row += "<td></td>";
                     }
                     row += "<td>" + entry.resource.total.value + " " + entry.resource.total.code + "</td>";
+                    row += "</tr>";
+                    break;
+                case "CarePlan":
+                    row += "<tr>";
+                    row += "<td>" + entry.resource.category.text + "</td>";
                     row += "</tr>";
                     break;
                 default:
