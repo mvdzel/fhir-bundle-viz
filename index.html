@@ -31,6 +31,7 @@
         <input type="file" class="form-control-file" id="inputFile" onchange="newInputFile()"/>
         <div class="input-group">
             <span class="input-group-btn">
+                <button class="btn btn-primary" onClick="speakPatientname()"><i class="fa fa-volume-up"></i></button>
                 <button class="btn btn-success" onClick="if (!window.speechSynthesis.speaking) recognition.start()"><i class="fa fa-microphone"></i></button>
             </span>
             <span id="output" class="form-control">Press the green microphone button and say the name of the tab you want to show...</span>
@@ -47,6 +48,7 @@
   </div>
 
 <script>
+var _patientname;
 var _data;
 $(document).ready(function(){
     $.getJSON("synthea_bundle.json", function(data, status){
@@ -87,9 +89,8 @@ function displayBundle(data) {
         else {
             age = new Date().getFullYear() - new Date(patient.birthDate).getFullYear();
         }
-        var patientname = patient.name[0].given + " " + patient.name[0].family + " " + patient.gender + " " + age;
-        document.getElementById("title").innerHTML = "<h2>FHIR Bundle Viewer for " + patientname + "</h2>";
-        speak("Viewing patient " + patientname);
+        _patientname = patient.name[0].given + " " + patient.name[0].family + " " + patient.gender + " " + age;
+        document.getElementById("title").innerHTML = "<h2>FHIR Bundle Viewer for " + _patientname + "</h2>";
     }
     else {
         document.getElementById("title").innerHTML = "<h2>FHIR Bundle Viewer</h2>";
@@ -520,7 +521,7 @@ function initAudio() {
 
     navigator.webkitGetUserMedia({audio:true}, function() {
         console.log('Got audio');
-        speak("Press the green microphone button and say the name of the tab you want to show.");
+        //speak("Press the green microphone button and say the name of the tab you want to show.");
     }, function(e) {
         alert('Error getting audio');
         console.log(e);
@@ -562,7 +563,12 @@ recognition.onend = function () {
 function speak(txt) {
     var msg = new SpeechSynthesisUtterance(txt);
     msg.lang = "en-US";
-    //window.speechSynthesis.speak(msg);
+    var checkBox = document.getElementById("enableSpeak");    
+    window.speechSynthesis.speak(msg);
+}
+
+function speakPatientname() {
+    speak("Viewing patient " + _patientname);
 }
 </script>
 
