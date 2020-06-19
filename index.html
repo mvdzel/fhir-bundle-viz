@@ -24,7 +24,7 @@
 <body>
 
 <div class="container">
-  <div id="title"><h2>FHIR Bundle Viewer</h2></div>
+  <div id="title"><h2><i>FHIR Bundle Viewer</i></h2></div>
 
   <div>
     <p>
@@ -49,6 +49,7 @@
 
 <script>
 var _patientname;
+var _birthdate;
 var _data;
 $(document).ready(function(){
     $.getJSON("synthea_bundle.json", function(data, status){
@@ -82,18 +83,19 @@ function displayBundle(data) {
     var entries = data.entry.filter(entry => { return entry.resource.resourceType == "Patient" });
     if (entries.length > 0 && entries[0].resource && entries[0].resource.name) {
         var patient = entries[0].resource;
+        _birthdate = new Date(patient.birthDate);
         var age;
         if (patient.deceasedDateTime) {
-            age = new Date(patient.deceasedDateTime).getFullYear() - new Date(patient.birthDate).getFullYear() + " deceased";
+            age = new Date(patient.deceasedDateTime).getFullYear() - _birthdate.getFullYear() + " deceased";
         }
         else {
-            age = new Date().getFullYear() - new Date(patient.birthDate).getFullYear();
+            age = new Date().getFullYear() - _birthdate.getFullYear();
         }
         _patientname = patient.name[0].given + " " + patient.name[0].family + " " + patient.gender + " " + age;
-        document.getElementById("title").innerHTML = "<h2>FHIR Bundle Viewer for " + _patientname + "</h2>";
+        document.getElementById("title").innerHTML = "<h2><i>FHIR Bundle Viewer for</i> " + _patientname + " (" + _birthdate.toDateString() + ")</h2>";
     }
     else {
-        document.getElementById("title").innerHTML = "<h2>FHIR Bundle Viewer</h2>";
+        document.getElementById("title").innerHTML = "<h2><i>FHIR Bundle Viewer</i></h2>";
     }
 
     // clear tabs and pages
@@ -205,7 +207,8 @@ function displayBundle(data) {
                 case "Encounter":
                     row += "<tr>";
                     row += "<td>" + (entry.resource.type[0].text || "") + "</td>";
-                    row += "<td>" + new Date(entry.resource.period.start).toDateString() + " - " + new Date(entry.resource.period.end).toDateString() + "</td>";
+                    var ageAtEncounter = new Date(entry.resource.period.start).getFullYear() - _birthdate.getFullYear()
+                    row += "<td>" + new Date(entry.resource.period.start).toDateString() + " - " + new Date(entry.resource.period.end).toDateString() + " (" + ageAtEncounter + "jr)</td>";
                     row += "<td><span class=\"label label-default\">" + entry.resource.status + "</span></td>";
                     row += "<td><span class=\"label label-default\">" + entry.resource.class.code + "</span></td>";
                     row += "<td><ul class=\"list-group\">";
@@ -332,7 +335,8 @@ function drawChart() {
     dataTable.addColumn({ type: 'date', id: 'Start' });
     dataTable.addColumn({ type: 'date', id: 'End' });
 
-    var fromDate = new Date(2000,0,0);
+    //var fromDate = new Date(2000,0,0);
+    var fromDate = new Date(1980,0,0);
 
     var entries = _data.entry.filter(entry => { return entry.resource.resourceType == "Encounter" });
     entries.forEach(entry => {
