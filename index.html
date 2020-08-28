@@ -52,7 +52,8 @@ var _patientname;
 var _birthdate;
 var _data;
 $(document).ready(function(){
-    $.getJSON("synthea_bundle.json", function(data, status){
+
+    $.getJSON("https://dhealth.usor.nl:4003/hapi-fhir-jpaserver/fhir/Patient/86de9f5e-2baa-4399-a142-c8df2ce87cc3/$everything?_count=100", function(data, status){
         displayBundle(data);
         _data = data;
         google.charts.load('current', {'packages':['timeline']});
@@ -61,6 +62,16 @@ $(document).ready(function(){
         drawObsTiles("container-vitals", "vital-signs");
         drawObsTiles("container-labs", "laboratory");
     });
+
+    // $.getJSON("synthea_bundle.json", function(data, status){
+    //     displayBundle(data);
+    //     _data = data;
+    //     google.charts.load('current', {'packages':['timeline']});
+    //     google.charts.setOnLoadCallback(drawChart);
+    //     drawTimeline();
+    //     drawObsTiles("container-vitals", "vital-signs");
+    //     drawObsTiles("container-labs", "laboratory");
+    // });
 });
 
 function newInputFile() {
@@ -212,13 +223,13 @@ function displayBundle(data) {
                     row += "<td><span class=\"label label-default\">" + entry.resource.status + "</span></td>";
                     row += "<td><span class=\"label label-default\">" + entry.resource.class.code + "</span></td>";
                     row += "<td><ul class=\"list-group\">";
-                    var procedures = data.entry.filter(_entry => { return _entry.resource.resourceType == "Procedure" && _entry.resource.context.reference == entry.fullUrl });
+                    var procedures = data.entry.filter(_entry => { return _entry.resource.resourceType == "Procedure" && entry.fullUrl.endsWith(_entry.resource.context.reference)  });
                     procedures.forEach(_entry => {
                         row += "<li class=\"list-group-item\">" + _entry.resource.code.text + "</li>";
                     });
                     row += "</ul></td>";
                     row += "<td><ul class=\"list-group\">";
-                    var conditions = data.entry.filter(_entry => { return _entry.resource.resourceType == "Condition" && _entry.resource.context.reference == entry.fullUrl });
+                    var conditions = data.entry.filter(_entry => { return _entry.resource.resourceType == "Condition" && entry.fullUrl.endsWith(_entry.resource.context.reference) });
                     conditions.forEach(_entry => {
                         row += "<li class=\"list-group-item\">" + _entry.resource.code.text + "</li>";
                     });
@@ -285,15 +296,15 @@ function displayBundle(data) {
                 case "Claim":
                     row += "<tr>";
                     if(entry.resource.procedure) {
-                        var procedures = data.entry.filter(_entry => { return _entry.resource.resourceType == "Procedure" && entry.resource.procedure[0].procedureReference.reference == _entry.fullUrl });
+                        var procedures = data.entry.filter(_entry => { return _entry.resource.resourceType == "Procedure" && _entry.fullUrl.endsWith(entry.resource.procedure[0].procedureReference.reference) });
                         row += "<td><i class='fa fa-procedures'></i> " + procedures[0].resource.code.text + "</td>";
                     }
                     else if(entry.resource.prescription) {
-                        var prescriptions = data.entry.filter(_entry => { return _entry.resource.resourceType == "MedicationRequest" && entry.resource.prescription.reference == _entry.fullUrl });
+                        var prescriptions = data.entry.filter(_entry => { return _entry.resource.resourceType == "MedicationRequest" && _entry.fullUrl.endsWith(entry.resource.prescription.reference) });
                         row += "<td><i class='fa fa-prescription'></i> " + prescriptions[0].resource.medicationCodeableConcept.text + "</td>";
                     }
                     else if(entry.resource.diagnosis) {
-                        var diagnosis = data.entry.filter(_entry => { return _entry.resource.resourceType == "Condition" && entry.resource.diagnosis[0].diagnosisReference.reference == _entry.fullUrl });
+                        var diagnosis = data.entry.filter(_entry => { return _entry.resource.resourceType == "Condition" && _entry.fullUrl.endsWith(entry.resource.diagnosis[0].diagnosisReference.reference) });
                         row += "<td><i class='fa fa-user-md'></i> " + diagnosis[0].resource.code.text  + "</td>";
                     }
                     else {
