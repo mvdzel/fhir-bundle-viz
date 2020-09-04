@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>FHIR Bundle Viewer</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="stylesheet" href="bootstrap/3.4.1/css/bootstrap.min.css">
+  <link rel="stylesheet" href="css/timeline.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.0-2/css/all.min.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+  <script src="bootstrap/3.4.1/js/bootstrap.min.js"></script>
+  <script src="jquery.sparkline.min.js"></script>
+
+  <!-- Google timeline chart -->
+  <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+
+  <style>
+      body {
+        font-family: roboto;
+      }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div id="title"><h2><i>FHIR Bundle Viewer</i></h2></div>
+
+  <div>
+    <p>
+        <input type="file" class="form-control-file" id="inputFile" onchange="newInputFile()"/>
+        <div class="input-group">
+            <span class="input-group-btn">
+                <button class="btn btn-primary" onClick="speakPatientname()"><i class="fa fa-volume-up"></i></button>
+                <button class="btn btn-success" onClick="if (!window.speechSynthesis.speaking) recognition.start()"><i class="fa fa-microphone"></i></button>
+            </span>
+            <span id="output" class="form-control">Druk de groene microfoon knop en noem de naam van de tabblad om die te tonen...</span>
+        </div>
+    </p>
+  </div>
+
+  <!-- Tabs-->
+  <ul class="nav nav-pills" id="tabs">
+  </ul>
+
+  <!-- Tab Panels-->
+  <div class="tab-content" id="divs">
+  </div>
+
+<script>
+var _patientname;
+var _birthdate;
+var _data;
+$(document).ready(function(){
+
+    $.getJSON("https://dhealth.usor.nl:4003/hapi-fhir-jpaserver/fhir/Patient/86de9f5e-2baa-4399-a142-c8df2ce87cc3/$everything?_count=100", function(data, status){
+        displayBundle(data);
+        _data = data;
+        google.charts.load('current', {'packages':['timeline']});
+        google.charts.setOnLoadCallback(drawChart);
+        drawTimeline();
+        drawObsTiles("container-vitals", "vital-signs");
+        drawObsTiles("container-labs", "laboratory");
+    });
+
+    // $.getJSON("synthea_bundle.json", function(data, status){
+    //     displayBundle(data);
+    //     _data = data;
+    //     google.charts.load('current', {'packages':['timeline']});
+    //     google.charts.setOnLoadCallback(drawChart);
+    //     drawTimeline();
+    //     drawObsTiles("container-vitals", "vital-signs");
+    //     drawObsTiles("container-labs", "laboratory");
+    // });
+});
+
+function newInputFile() {
+    var reader = new FileReader();
+    reader.onload = function(){
+        var data = JSON.parse(reader.result);
+        displayBundle(data);
+        _data = data;
+        drawChart();
+        drawTimeline();
+        drawObsTiles("container-vitals", "vital-signs");
+        drawObsTiles("container-labs", "laboratory");
+    };
+    reader.readAsText(document.getElementById("inputFile").files[0]);
+}
+
+function displayBundle(data) {
+
+    // create title based on Patient
+    var entries = data.entry.filter(entry => { return entry.resource.resourceType == "Patient" });
+    if (entries.length > 0 && entries[0].resource && entries[0].resource.name) {
+        var patient = entries[0].resource;
+        _birthdate = new Date(patient.birthDate);
+        var age;
+        if (patient.deceasedDateTime) {
+            age = new Date(patient.deceasedDateTime).getFullYear() - _birthdate.getFullYear() + " overleden";
+        }
+        else {
+            age = new Date().getFullYear() - _birthdate.getFullYear();
+        }
+        _patientname = patient.name[0].given + " " + patient.name[0].family + " " + patient.gender + " " + age;
+        document.getElementById("title").innerHTML = "<h2><i>FHIR Bundle Viewer for</i> " + _patientname + " (" + _birthdate.toDateString() + ")</h2>";
+    }
+    else {
+        document.getElementById("title").innerHTML = "<h2><i>FHIR Bundle Viewer</i></h2>";
+    }
+
+    // clear tabs and pages
+    var tabs = "<li class=\"active\"><a data-toggle=\"tab\" href=\"#overview\">Overview</a></li>";
+    tabs += "<li><a data-toggle=\"tab\" href=\"#timeline\">Med Timeline</a></li>";
+    tabs += "<li><a data-toggle=\"tab\" href=\"#vitals\">Vitale Gegevens</a></li>";
+    tabs += "<li><a data-toggle=\"tab\" href=\"#labs\">Laboratorium</a></li>";
+    document.getElementById("tabs").innerHTML = tabs;
+
+    var homeDiv = "<div id=\"overview\" class=\"tab-pane fade in active\"><h3>Overzicht</h3>";
+        homeDiv += "<div id=\"container-chart\" style=\"height: 600px;\"></div></div>";
+    homeDiv += "<div id=\"timeline\" class=\"tab-pane fade in active\"><h3>Med Timeline</h3>";
+        homeDiv += "<div id=\"container-timeline\" style=\"height: 600px;\"></div></div>";
+    homeDiv += "<div id=\"vitals\" class=\"tab-pane fade in active\"><h3>Laatste Vitale Gegevens</h3>";
+        homeDiv += "<div id=\"container-vitals\" style=\"height: 600px;;\"></div></div>";
+    homeDiv += "<div id=\"labs\" class=\"tab-pane fade in active\"><h3>Laboratorium</h3>";
+        homeDiv += "<div id=\"container-labs\" style=\"height: 600px;;\"></div></div>";
+    document.getElementById("divs").innerHTML = homeDiv;
+
+    // pupulate tabs and pages
+    var resourceTypes = new Set(data.entry.map(item => item.resource.resourceType));
+    resourceTypes.forEach(resourceType => {
+        var entries = data.entry.filter(entry => { return entry.resource.resourceType == resourceType });
+        var resourceCount = entries.length;
+        var resourceTypeLabel = resourceType;
+        switch(resourceType) {
+            case "Condition":
+             resourceTypeLabel = "Diagnose";
+                break;
+            case "Encounter":
+             resourceTypeLabel = "Contact";
+                break;
+            case "Procedure":
+             resourceTypeLabel = "Verrichting";
+                break;
+            case "MedicationRequest":
+             resourceTypeLabel = "Medicatie";
+                break;
+            case "Immunization":
+             resourceTypeLabel = "Vaccinatie";
+                break;
+            case "Observation":
+             resourceTypeLabel = "Meting";
+                break;
+            case "Organization":
+             resourceTypeLabel = "Zorgaanbieder";
+                break;
+            case "Practitioner":
+             resourceTypeLabel = "Zorgverlener";
+                break;
+            case "Claim":
+             resourceTypeLabel = "Claim";
+                break;
+            case "CarePlan":
+             resourceTypeLabel = "Behandelplan";
+                break;
+            case "ImagingStudy":
+             resourceTypeLabel = "Beeldonderzoek";
+                break;
+        }
+        var resourceTypeAndCount = resourceTypeLabel + "<span class=\"badge\">" + resourceCount + "</span>";
+        document.getElementById("tabs").innerHTML += "<li><a data-toggle=\"tab\" href=\"#" + resourceType.toLowerCase() + "\">" + resourceTypeAndCount + "</a></li>";
+        var div = "<div id=\"" + resourceType.toLowerCase() + "\" class=\"tab-pane fade\"><h3>" + resourceTypeLabel + " Regels</h3><table class=\"table table-striped table-hover\"><thead>";
+        switch(resourceType) {
+            case "Condition":
+                div += "<tr><th>Diagnose</th><th>Datum</th><th>Status</th></tr></thead><tbody>";
+                break;
+            case "Encounter":
+                div += "<tr><th>Type</th><th>Datum</th><th>Status</th><th>Klasse</th><th>Verrichtingen</th><th>Diagnosen</th></tr></thead><tbody>";
+                break;
+            case "Procedure":
+                div += "<tr><th>Verrichting</th><th>Datum</th><th>Status</th></tr></thead><tbody>";
+                break;
+            case "MedicationRequest":
+                div += "<tr><th>Medicatie</th><th>Datum</th><th>Status</th></tr></thead><tbody>";
+                break;
+            case "Immunization":
+                div += "<tr><th>Middel</th><th>Datum</th><th>Status</th></tr></thead><tbody>";
+                break;
+            case "Observation":
+                div += "<tr><th>Categorie</th><th>Meting</th><th>Uitslag</th><th>Datum</th></tr></thead><tbody>";
+                break;
+            case "Organization":
+                div += "<tr><th>Organisatie</th><th>Plaats</th><th>Type</th></tr></thead><tbody>";
+                break;
+            case "Practitioner":
+                div += "<tr><th>Zorgverlener</th><th>Adres</th></tr></thead><tbody>";
+                break;
+            case "Claim":
+                div += "<tr><th>Item</th><th>Cost</th></tr></thead><tbody>";
+                break;
+            case "CarePlan":
+                div += "<tr><th>Categorie</th></tr></thead><tbody>";
+                break;
+            case "ImagingStudy":
+                div += "<tr><th>Modaliteit</th></tr></thead><tbody>";
+                break;
+            default:
+                div += "<tr><th>Regel</th></tr></thead><tbody>";
+                break;
+        }
+
+        entries.reverse().forEach(entry => {
+            var row = "";
+            switch(resourceType) {
+                case "Condition":
+                    if (!entry.resource.code) return;
+                    var clinicalStatus = entry.resource.clinicalStatus || "";
+                    var verificationStatus = entry.resource.verificationStatus || "";
+                    switch (clinicalStatus) {
+                        case "active":
+                            row += "<tr class=\"info\">";
+                            break;
+                        default:
+                            row += "<tr>";
+                            break;
+                    }
+                    var code = entry.resource.code.text || entry.resource.code.coding[0].display;
+                    row += "<td>" + code + "</td>";
+                    if (entry.resource.abatementDateTime) {
+                        row += "<td>" + new Date(entry.resource.onsetDateTime).toDateString() + " - " + new Date(entry.resource.abatementDateTime).toDateString() + "</td>";
+                    }
+                    else {
+                        row += "<td>" + new Date(entry.resource.onsetDateTime).toDateString() + "</td>";
+                    }
+                    row += "<td><span class=\"label label-default\">" + clinicalStatus + "</span> " + verificationStatus + "</td>";
+                    row += "</tr>";
+                    break;
+                case "MedicationRequest":
+                    var status = entry.resource.status;
+                    switch (status) {
+                        case "active":
+                            row += "<tr class=\"info\">";
+                            break;
+                        default:
+                            row += "<tr>";
+                            break;
+                    }
+                    row += "<td>" + entry.resource.medicationCodeableConcept.text + "</td>";
+                    row += "<td>" + new Date(entry.resource.authoredOn).toDateString() + "</td>";
+                    row += "<td><span class=\"label label-default\">" + status + "</span></td>";
+                    row += "</tr>";
+                    break;
+                case "Encounter":
+                    row += "<tr>";
+                    row += "<td>" + (entry.resource.type[0].text || "") + "</td>";
+                    var ageAtEncounter = new Date(entry.resource.period.start).getFullYear() - _birthdate.getFullYear()
+                    row += "<td>" + new Date(entry.resource.period.start).toDateString() + " - " + new Date(entry.resource.period.end).toDateString() + " (" + ageAtEncounter + "jr)</td>";
+                    row += "<td><span class=\"label label-default\">" + entry.resource.status + "</span></td>";
+                    row += "<td><span class=\"label label-default\">" + entry.resource.class.code + "</span></td>";
+                    row += "<td><ul class=\"list-group\">";
+                    var procedures = data.entry.filter(_entry => { return _entry.resource.resourceType == "Procedure" && entry.fullUrl.endsWith(_entry.resource.context.reference)  });
+                    procedures.forEach(_entry => {
+                        row += "<li class=\"list-group-item\">" + _entry.resource.code.text + "</li>";
+                    });
+                    row += "</ul></td>";
+                    row += "<td><ul class=\"list-group\">";
+                    var conditions = data.entry.filter(_entry => { return _entry.resource.resourceType == "Condition" && entry.fullUrl.endsWith(_entry.resource.context.reference) });
+                    conditions.forEach(_entry => {
+                        row += "<li class=\"list-group-item\">" + _entry.resource.code.text + "</li>";
+                    });
+                    row += "</ul></td>";
+                    row += "</tr>";
+                    break;
+                case "Procedure":
+                    row += "<tr>";
+                    row += "<td>" + entry.resource.code.text + "</td>";
+                    row += "<td>" + new Date(entry.resource.performedPeriod.start).toDateString() + " - " + new Date(entry.resource.performedPeriod.end).toDateString() + "</td>";
+                    row += "<td><span class=\"label label-default\">" + entry.resource.status + "</span></td>";
+                    row += "</tr>";
+                    break;
+                case "Immunization":
+                    row += "<tr>";
+                    row += "<td>" + entry.resource.vaccineCode.text + "</td>";
+                    row += "<td>" + new Date(entry.resource.date).toDateString() + "</td>";
+                    row += "<td><span class=\"label label-default\">" + entry.resource.status + "</span></td>";
+                    row += "</tr>";
+                    break;
+                case "Observation":
+                    row += "<tr>";
+                    if (entry.resource.category[0]) {
+                        row += "<td>" + entry.resource.category[0].coding[0].display + "</td>";
+                    }
+                    else {
+                        row += "<td></td>";
+                    }
+                    row += "<td>" + entry.resource.code.coding[0].display + "</td>";
+                    var value = "";
+                    if (entry.resource.valueQuantity) {
+                        value = entry.resource.valueQuantity.value + " " + entry.resource.valueQuantity.unit;
+                    }
+                    else if (entry.resource.valueString) {
+                        value = entry.resource.valueString;
+                    }
+                    else if (entry.resource.valueCodeableConcept) {
+                        value = entry.resource.valueCodeableConcept.text;
+                    }
+                    row += "<td>" + value + "</td>";
+                    var date = "";
+                    if (entry.resource.effectiveDateTime) {
+                        date = new Date(entry.resource.effectiveDateTime).toDateString();
+                    }
+                    else if (entry.resource.effectivePeriod) {
+                        date = new Date(entry.resource.effectivePeriod.start).toDateString() + " - " + new Date(entry.resource.effectivePeriod.end).toDateString();
+                    }
+                    row += "<td>" + date + "</td>";
+                    row += "</tr>";
+                    break;
+                case "Organization":
+                    row += "<tr>";
+                    row += "<td>" + entry.resource.name + "</td>";
+                    row += "<td>" + entry.resource.address[0].city + "</td>";
+                    row += "<td>" + entry.resource.type[0].text + "</td>";
+                    row += "</tr>";
+                    break;
+                case "Practitioner":
+                    row += "<tr>";
+                    row += "<td>" + Object.values(entry.resource.name[0]).join(', ') + "</td>";
+                    row += "<td>" + Object.values(entry.resource.address[0]).join(', ') + "</td>";
+                    row += "</tr>";
+                    break;
+                case "Claim":
+                    row += "<tr>";
+                    if(entry.resource.procedure) {
+                        var procedures = data.entry.filter(_entry => { return _entry.resource.resourceType == "Procedure" && _entry.fullUrl.endsWith(entry.resource.procedure[0].procedureReference.reference) });
+                        row += "<td><i class='fa fa-procedures'></i> " + procedures[0].resource.code.text + "</td>";
+                    }
+                    else if(entry.resource.prescription) {
+                        var prescriptions = data.entry.filter(_entry => { return _entry.resource.resourceType == "MedicationRequest" && _entry.fullUrl.endsWith(entry.resource.prescription.reference) });
+                        row += "<td><i class='fa fa-prescription'></i> " + prescriptions[0].resource.medicationCodeableConcept.text + "</td>";
+                    }
+                    else if(entry.resource.diagnosis) {
+                        var diagnosis = data.entry.filter(_entry => { return _entry.resource.resourceType == "Condition" && _entry.fullUrl.endsWith(entry.resource.diagnosis[0].diagnosisReference.reference) });
+                        row += "<td><i class='fa fa-user-md'></i> " + diagnosis[0].resource.code.text  + "</td>";
+                    }
+                    else {
+                        row += "<td></td>";
+                    }
+                    row += "<td>" + entry.resource.total.value + " " + entry.resource.total.code + "</td>";
+                    row += "</tr>";
+                    break;
+                case "CarePlan":
+                    row += "<tr>";
+                    row += "<td>" + entry.resource.category[0].text + "</td>";
+                    row += "</tr>";
+                    break;
+                case "ImagingStudy":
+                    row += "<tr>";
+                    row += "<td>" + entry.resource.series[0].modality.display + " (" + entry.resource.series[0].modality.code + ")</td>";
+                    row += "</tr>";
+                    break;
+                default:
+                    row += "<tr>";
+                    row += "<td>" + entry.resource.id + "</td>";
+                    row += "</tr>";
+                    break;
+            }
+            div += row;
+        });
+        div += "</tbody></table></div></div>";
+        document.getElementById("divs").innerHTML += div;
+    });    
+}
+
+function drawChart() {
+    var container = document.getElementById('container-chart');
+    var chart = new google.visualization.Timeline(container);
+    var dataTable = new google.visualization.DataTable();
+
+    dataTable.addColumn({ type: 'string', id: 'Resource' });
+    dataTable.addColumn({ type: 'string', id: 'Type' });
+    dataTable.addColumn({ type: 'date', id: 'Start' });
+    dataTable.addColumn({ type: 'date', id: 'End' });
+
+    //var fromDate = new Date(2000,0,0);
+    var fromDate = new Date(1980,0,0);
+
+    var entries = _data.entry.filter(entry => { return entry.resource.resourceType == "Encounter" });
+    entries.forEach(entry => {
+        var type = entry.resource.type[0].text || "";
+        var start = new Date(entry.resource.period.start);
+        var end = new Date(entry.resource.period.end);
+        if (start > fromDate) {
+            dataTable.addRow([ "Encounter", type, start, end ]);
+        }
+    });
+    var entries = _data.entry.filter(entry => { return entry.resource.resourceType == "Condition" });
+    entries.forEach(entry => {
+        if (!entry.resource.code) return;
+        var code = entry.resource.code.text || entry.resource.code.coding[0].display;
+        var start = new Date(entry.resource.onsetDateTime);
+        var end = new Date(entry.resource.assertedDate);
+        if (start > fromDate) {
+            dataTable.addRow([ "Condition", code, start, end ]);
+        }
+    });
+    var entries = _data.entry.filter(entry => { return entry.resource.resourceType == "Procedure" });
+    entries.forEach(entry => {
+        var code = entry.resource.code.text;
+        var start = new Date(entry.resource.performedPeriod.start);
+        var end = new Date(entry.resource.performedPeriod.end);
+        if (start > fromDate) {
+            dataTable.addRow([ "Procedure", code, start, end ]);
+        }
+    });
+    var entries = _data.entry.filter(entry => { return entry.resource.resourceType == "Immunization" });
+    entries.forEach(entry => {
+        var type = entry.resource.vaccineCode.text;
+        var date = new Date(entry.resource.date);
+        if (date > fromDate) {
+            dataTable.addRow([ "Immunization", type, date, date ]);
+        }
+    });
+
+    var options = {
+      timeline: { groupByRowLabel: true }
+    };
+    chart.draw(dataTable, options);
+}
+
+function drawTimeline() {
+    var container = document.getElementById('container-timeline');
+    var timeline = "<div class=\"timeline timeline-line-dotted\">";
+    timeline += "<span class=\"timeline-label\"><span class=\"label label-primary\">e.o.r.</span></span>";
+
+    var entries = _data.entry.filter(entry => { return entry.resource.resourceType == "MedicationRequest" });
+    var lastdate = "";
+    entries.reverse().forEach(entry => {
+        // Procedure
+        // var type = entry.resource.code.text;
+        // var start = new Date(entry.resource.performedPeriod.start);
+        // MedicationRequest
+        var type = entry.resource.medicationCodeableConcept.text;
+        var start = new Date(entry.resource.authoredOn);
+        // Condition
+        // var type = entry.resource.code.coding[0].display;
+        // var start = new Date(entry.resource.onsetDateTime);
+        // var end = new Date(entry.resource.assertedDate);
+
+        var date = start.getFullYear() + '.' + (start.getMonth()+1);
+
+        if (date != lastdate) {
+            lastdate = date;
+            timeline += "<span class=\"timeline-label\"><span class=\"label label-info\">" + date + "</span></span>";
+        }
+
+        timeline += "<div class=\"timeline-item\"><div class=\"timeline-point timeline-point-blank\"></div>";
+        switch (entry.resource.status) {
+            case "active":
+                timeline += "<div class=\"timeline-event timeline-event-warning\"><span class=\"label label-warning\">active</span>";
+                break;
+            default:
+                timeline += "<div class=\"timeline-event timeline-event-primary\">";
+                break;
+        }
+        timeline += "<div class=\"timeline-heading\">" + start.toDateString() + "<h4>" + type + "</h4></div>";
+
+        if (entry.resource.reasonReference) {
+            var reasonRef = entry.resource.reasonReference[0].reference;
+            if (reasonRef) {
+                var reasonRefEntry = _data.entry.filter(entry => { return entry.fullUrl == reasonRef && entry.resource.resourceType == "Condition" });
+                var reason = reasonRefEntry[0].resource.code.text;
+                timeline += "<div class=\"timeline-footer\">Reason: " + reason + "</div>";
+            }
+        }
+
+        timeline += "</div>";
+        timeline += "</div>";
+    });
+    timeline += "<span class=\"timeline-label\"><span class=\"label label-primary\">s.o.r.</span></span>";
+
+    container.innerHTML = timeline;
+}
+
+function drawObsTiles(_containerName, _category) {
+    var container = document.getElementById(_containerName);
+    var tiles = "<div class=\"container-fluid\"><div class=\"row\">";
+
+    // create obs tiles
+    var lastdate = [];
+    var entries = _data.entry.filter(entry => { return entry.resource.resourceType == "Observation" });
+    entries.reverse().forEach(entry => {
+        if (entry.resource.category[0] == undefined) return;
+        if (entry.resource.category[0].coding[0].display != _category) return;
+
+        if (entry.resource.component) {
+            var date = new Date(entry.resource.effectiveDateTime);
+
+            entry.resource.component.forEach(component => {
+                var ccode = component.code.coding[0].display.substring(0,30);
+                var cvalue = component.valueQuantity.value;
+                var cunit = component.valueQuantity.unit;
+                if (lastdate[ccode] == undefined || date > lastdate[ccode]) {
+                    lastdate[ccode] = date;
+                    tiles += "<div class=\"col-md-2\">";
+                    tiles += "<div class=\"well well-sm\" style='white-space: nowrap; overflow: hidden;'>";
+                    tiles += "<p>" + ccode + "</p>";
+                    tiles += "<small><font color=\"#cccccc\">" + date.toDateString() + "</font></small><h3>" + cvalue + "<small> " + cunit + "</small></h3>";
+                    tiles += "<span id=\"spark" + component.code.coding[0].code + "\">...</span>";
+                    tiles += "</div></div>";
+                }
+            });
+        }
+
+        if (entry.resource.valueQuantity == undefined) return;
+        var code = entry.resource.code.coding[0].display.substring(0,30);
+        var value = entry.resource.valueQuantity.value;
+        var unit = entry.resource.valueQuantity.unit;
+        var date = new Date(entry.resource.effectiveDateTime);
+
+        if (lastdate[code] == undefined || date > lastdate[code]) {
+            lastdate[code] = date;
+            tiles += "<div class=\"col-md-2\">";
+            tiles += "<div class=\"well well-sm\" style='white-space: nowrap; overflow: hidden;'>";
+            tiles += "<p>" + code + "</p>";
+            tiles += "<small><font color=\"#cccccc\">" + date.toDateString() + "</font></small><h3>" + value + "<small> " + unit + "</small></h3>";
+            tiles += "<span id=\"spark" + entry.resource.code.coding[0].code + "\">...</span>";
+            tiles += "</div></div>";
+        }
+    });
+    tiles += "</div></div>";
+    container.innerHTML = tiles;
+
+    // create vital sparks
+    var sparkValues = {};
+    var entries = _data.entry.filter(entry => { return entry.resource.resourceType == "Observation" });
+    entries.forEach(entry => {
+        if (entry.resource.category[0] == undefined) return;
+        if (entry.resource.category[0].coding[0].display != _category) return;
+
+        if (entry.resource.component) {
+            entry.resource.component.forEach(component => {
+                var ccode = component.code.coding[0].code;
+                var cvalue = component.valueQuantity.value;
+                if (sparkValues[ccode] == undefined) {
+                    sparkValues[ccode] = [];
+                }
+                sparkValues[ccode].push(cvalue);
+            });
+        }
+
+        if (entry.resource.valueQuantity == undefined) return;
+        var code = entry.resource.code.coding[0].code;
+        var value = entry.resource.valueQuantity.value;
+        if (sparkValues[code] == undefined) {
+            sparkValues[code] = [];
+        }
+        sparkValues[code].push(value);
+    });
+
+    Object.keys(sparkValues).forEach(code => {
+        $("#spark" + code).sparkline(sparkValues[code], { disableTooltips: true });
+    });
+}
+</script>
+
+<!-- Speech subsystem-->
+<script>
+function initAudio() {
+    if (!navigator.webkitGetUserMedia)
+        return(alert("Error: getUserMedia not supported!"));
+
+    navigator.webkitGetUserMedia({audio:true}, function() {
+        console.log('Got audio');
+        //speak("Press the green microphone button and say the name of the tab you want to show.");
+    }, function(e) {
+        alert('Error getting audio');
+        console.log(e);
+    });
+}
+window.addEventListener('load', initAudio );
+
+var recognition = new webkitSpeechRecognition();
+recognition.continuous = false;
+recognition.interimResults = true;
+recognition.lang = "en-US";
+recognition.onstart = function () {
+    output.innerHTML = "Say a tab name ('timeline' for Med Timeline, 'vitals' for Vital Signs)...";
+};
+recognition.onresult = function (event) {
+    var final = "";
+    for (var i = 0; i < event.results.length; ++i) {
+        if (event.results[i].final) {
+            final += event.results[i][0].transcript;
+        }
+        else {
+            final += event.results[i][0].transcript;
+        }
+    }
+    output.innerHTML = final;
+};
+recognition.onerror = function (event) { };
+recognition.onend = function () {
+    recognition.stop();
+    var tabname = output.innerHTML.replace(' ','').toLowerCase();
+    if (document.getElementById(tabname) == undefined) {
+        speak("Unknown tab");
+        return;
+    }
+    speak("Showing the " + tabname + " tab");
+    $('.nav-pills a[href="#' + tabname + '"]').tab('show')
+}
+
+function speak(txt) {
+    var msg = new SpeechSynthesisUtterance(txt);
+    msg.lang = "nl-NL";
+    var checkBox = document.getElementById("enableSpeak");    
+    window.speechSynthesis.speak(msg);
+}
+
+function speakPatientname() {
+    speak("Patient " + _patientname);
+}
+</script>
+
+</body>
+</html>
