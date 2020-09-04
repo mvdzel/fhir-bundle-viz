@@ -202,7 +202,7 @@ function displayBundle(data) {
                 div += "<tr><th>Categorie</th></tr></thead><tbody>";
                 break;
             case "ImagingStudy":
-                div += "<tr><th>Modaliteit</th></tr></thead><tbody>";
+                div += "<tr><th>Modaliteit</th><th>Datum</th></tr></thead><tbody>";
                 break;
             default:
                 div += "<tr><th>Regel</th></tr></thead><tbody>";
@@ -356,6 +356,7 @@ function displayBundle(data) {
                 case "ImagingStudy":
                     row += "<tr>";
                     row += "<td>" + entry.resource.series[0].modality.display + " (" + entry.resource.series[0].modality.code + ")</td>";
+                    row += "<td>" + new Date(entry.resource.started).toDateString() + "</td>";
                     row += "</tr>";
                     break;
                 default:
@@ -390,7 +391,7 @@ function drawChart() {
         var start = new Date(entry.resource.period.start);
         var end = new Date(entry.resource.period.end);
         if (start > fromDate) {
-            dataTable.addRow([ "Encounter", type, start, end ]);
+            dataTable.addRow([ "Contact", type, start, end ]);
         }
     });
     var entries = _data.entry.filter(entry => { return entry.resource.resourceType == "Condition" });
@@ -400,7 +401,7 @@ function drawChart() {
         var start = new Date(entry.resource.onsetDateTime);
         var end = new Date(entry.resource.assertedDate);
         if (start > fromDate) {
-            dataTable.addRow([ "Condition", code, start, end ]);
+            dataTable.addRow([ "Diagnose", code, start, end ]);
         }
     });
     var entries = _data.entry.filter(entry => { return entry.resource.resourceType == "Procedure" });
@@ -409,7 +410,7 @@ function drawChart() {
         var start = new Date(entry.resource.performedPeriod.start);
         var end = new Date(entry.resource.performedPeriod.end);
         if (start > fromDate) {
-            dataTable.addRow([ "Procedure", code, start, end ]);
+            dataTable.addRow([ "Verrichting", code, start, end ]);
         }
     });
     var entries = _data.entry.filter(entry => { return entry.resource.resourceType == "Immunization" });
@@ -417,7 +418,7 @@ function drawChart() {
         var type = entry.resource.vaccineCode.text;
         var date = new Date(entry.resource.date);
         if (date > fromDate) {
-            dataTable.addRow([ "Immunization", type, date, date ]);
+            dataTable.addRow([ "Vaccinatie", type, date, date ]);
         }
     });
 
