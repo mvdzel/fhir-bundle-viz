@@ -25,9 +25,9 @@
 <body>
 
 <div class="container">
-  <div id="title"><h2><i>FHIR Bundle Viewer</i></h2></div>
+  <div id="title"><h2><i>Patient Viewer</i></h2></div>
 
-  <div>
+  <div id="controls">
     <p>
         <input type="file" class="form-control-file" id="inputFile" onchange="newInputFile()"/>
         <div id="speech-controls" class="input-group">
@@ -41,7 +41,7 @@
   </div>
 
   <!-- Tabs-->
-  <ul class="nav nav-pills" id="tabs">
+  <ul class="nav nav-tabs" id="tabs">
   </ul>
 
   <!-- Tab Panels-->
@@ -55,6 +55,7 @@ var _data;
 $(document).ready(function(){
     google.charts.load('current', {'packages':['timeline']});
     FHIR.oauth2.ready(function(smart){
+        document.getElementById("controls").style.display = "none";
         $.getJSON(smart.server.serviceUrl + "/Patient/" + smart.patient.id + "/$everything?_count=200", function(data, status){
             displayBundle(data);
             _data = data;
@@ -96,10 +97,10 @@ function displayBundle(data) {
             age = new Date().getFullYear() - _birthdate.getFullYear();
         }
         _patientname = patient.name[0].given + " " + patient.name[0].family + " " + patient.gender + " " + age;
-        document.getElementById("title").innerHTML = "<h2><i>FHIR Bundle Viewer for</i> " + _patientname + " (" + _birthdate.toDateString() + ")</h2>";
+        document.getElementById("title").innerHTML = "<h2><i>Patient Viewer:</i> " + _patientname + " (" + _birthdate.toDateString() + ")</h2>";
     }
     else {
-        document.getElementById("title").innerHTML = "<h2><i>FHIR Bundle Viewer</i></h2>";
+        document.getElementById("title").innerHTML = "<h2><i>Patient Viewer</i></h2>";
     }
 
     // clear tabs and pages
@@ -163,7 +164,7 @@ function displayBundle(data) {
              resourceTypeLabel = "Allergie";
                 break;
         }
-        var resourceTypeAndCount = resourceTypeLabel + "<span class=\"badge\">" + resourceCount + "</span>";
+        var resourceTypeAndCount = resourceTypeLabel + " <span class=\"badge\">" + resourceCount + "</span>";
         document.getElementById("tabs").innerHTML += "<li><a data-toggle=\"tab\" href=\"#" + resourceType.toLowerCase() + "\">" + resourceTypeAndCount + "</a></li>";
         var div = "<div id=\"" + resourceType.toLowerCase() + "\" class=\"tab-pane fade\"><h3>" + resourceTypeLabel + " Regels</h3><table class=\"table table-striped table-hover\"><thead>";
         switch(resourceType) {
