@@ -49,6 +49,9 @@
   </div>
 
 <script>
+var options = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' };
+var df = new Intl.DateTimeFormat('nl-NL', options);
+
 var _patientname;
 var _birthdate;
 var _data;
@@ -97,7 +100,7 @@ function displayBundle(data) {
             age = new Date().getFullYear() - _birthdate.getFullYear();
         }
         _patientname = patient.name[0].given + " " + patient.name[0].family + " " + patient.gender + " " + age;
-        document.getElementById("title").innerHTML = "<h2><i>Patient Viewer:</i> " + _patientname + " (" + _birthdate.toDateString() + ")</h2>";
+        document.getElementById("title").innerHTML = "<h2><i>Patient Viewer:</i> " + _patientname + " (" + df.format(_birthdate) + ")</h2>";
     }
     else {
         document.getElementById("title").innerHTML = "<h2><i>Patient Viewer</i></h2>";
@@ -227,10 +230,10 @@ function displayBundle(data) {
                     var code = entry.resource.code.text || entry.resource.code.coding[0].display;
                     row += "<td>" + code + "</td>";
                     if (entry.resource.abatementDateTime) {
-                        row += "<td>" + new Date(entry.resource.onsetDateTime).toDateString() + " - " + new Date(entry.resource.abatementDateTime).toDateString() + "</td>";
+                        row += "<td>" + df.format(new Date(entry.resource.onsetDateTime)) + " - " + df.format(new Date(entry.resource.abatementDateTime)) + "</td>";
                     }
                     else {
-                        row += "<td>" + new Date(entry.resource.onsetDateTime).toDateString() + "</td>";
+                        row += "<td>" + df.format(new Date(entry.resource.onsetDateTime)) + "</td>";
                     }
                     row += "<td><span class=\"label label-default\">" + clinicalStatus + "</span> " + verificationStatus + "</td>";
                     row += "</tr>";
@@ -251,7 +254,7 @@ function displayBundle(data) {
                     else {
                         row += "<td></td>";
                     }
-                    row += "<td>" + new Date(entry.resource.authoredOn).toDateString() + "</td>";
+                    row += "<td>" + df.format(new Date(entry.resource.authoredOn)) + "</td>";
                     row += "<td><span class=\"label label-default\">" + status + "</span></td>";
                     row += "</tr>";
                     break;
@@ -259,7 +262,7 @@ function displayBundle(data) {
                     row += "<tr>";
                     row += "<td>" + (entry.resource.type[0].text || "") + "</td>";
                     var ageAtEncounter = new Date(entry.resource.period.start).getFullYear() - _birthdate.getFullYear()
-                    row += "<td>" + new Date(entry.resource.period.start).toDateString() + " - " + new Date(entry.resource.period.end).toDateString() + " (" + ageAtEncounter + "jr)</td>";
+                    row += "<td>" + df.format(new Date(entry.resource.period.start)) + " - " + df.format(new Date(entry.resource.period.end)) + " (" + ageAtEncounter + "jr)</td>";
                     row += "<td><span class=\"label label-default\">" + entry.resource.status + "</span></td>";
                     row += "<td><span class=\"label label-default\">" + entry.resource.class.code + "</span></td>";
                     row += "<td><ol style=\"list-style: decimal inside;\">";
@@ -280,7 +283,7 @@ function displayBundle(data) {
                     row += "<tr>";
                     row += "<td>" + entry.resource.code.text + "</td>";
                     if (entry.resource.performedPeriod) {
-                        row += "<td>" + new Date(entry.resource.performedPeriod.start).toDateString() + " - " + new Date(entry.resource.performedPeriod.end).toDateString() + "</td>";
+                        row += "<td>" + df.format(new Date(entry.resource.performedPeriod.start)) + " - " + df.format(new Date(entry.resource.performedPeriod.end)) + "</td>";
                     }
                     else {
                         row += "<td></td>";
@@ -291,7 +294,7 @@ function displayBundle(data) {
                 case "Immunization":
                     row += "<tr>";
                     row += "<td>" + entry.resource.vaccineCode.text + "</td>";
-                    row += "<td>" + new Date(entry.resource.date).toDateString() + "</td>";
+                    row += "<td>" + df.format(new Date(entry.resource.date)) + "</td>";
                     row += "<td><span class=\"label label-default\">" + entry.resource.status + "</span></td>";
                     row += "</tr>";
                     break;
@@ -317,10 +320,10 @@ function displayBundle(data) {
                     row += "<td>" + value + "</td>";
                     var date = "";
                     if (entry.resource.effectiveDateTime) {
-                        date = new Date(entry.resource.effectiveDateTime).toDateString();
+                        date = df.format(new Date(entry.resource.effectiveDateTime));
                     }
                     else if (entry.resource.effectivePeriod) {
-                        date = new Date(entry.resource.effectivePeriod.start).toDateString() + " - " + new Date(entry.resource.effectivePeriod.end).toDateString();
+                        date = df.format(new Date(entry.resource.effectivePeriod.start)) + " - " + df.format(new Date(entry.resource.effectivePeriod.end));
                     }
                     row += "<td>" + date + "</td>";
                     row += "</tr>";
@@ -366,7 +369,7 @@ function displayBundle(data) {
                 case "ImagingStudy":
                     row += "<tr>";
                     row += "<td>" + entry.resource.series[0].modality.display + " (" + entry.resource.series[0].modality.code + ")</td>";
-                    row += "<td>" + new Date(entry.resource.started).toDateString() + "</td>";
+                    row += "<td>" + df.format(new Date(entry.resource.started)) + "</td>";
                     row += "</tr>";
                     break;
                 case "AllergyIntolerance":
@@ -482,7 +485,7 @@ function drawTimeline() {
                 timeline += "<div class=\"timeline-event timeline-event-primary\">";
                 break;
         }
-        timeline += "<div class=\"timeline-heading\">" + start.toDateString() + "<h4>" + type + "</h4></div>";
+        timeline += "<div class=\"timeline-heading\">" + df.format(start) + "<h4>" + type + "</h4></div>";
 
         if (entry.resource.reasonReference) {
             var reasonRef = entry.resource.reasonReference[0].reference;
@@ -524,7 +527,7 @@ function drawObsTiles(_containerName, _category) {
                     tiles += "<div class=\"col-md-2\">";
                     tiles += "<div class=\"well well-sm\" style='white-space: nowrap; overflow: hidden;'>";
                     tiles += "<p>" + ccode + "</p>";
-                    tiles += "<small><font color=\"#cccccc\">" + date.toDateString() + "</font></small><h3>" + cvalue + "<small> " + cunit + "</small></h3>";
+                    tiles += "<small><font color=\"#cccccc\">" + df.format(date) + "</font></small><h3>" + cvalue + "<small> " + cunit + "</small></h3>";
                     tiles += "<span id=\"spark" + component.code.coding[0].code + "\">...</span>";
                     tiles += "</div></div>";
                 }
@@ -542,7 +545,7 @@ function drawObsTiles(_containerName, _category) {
             tiles += "<div class=\"col-md-2\">";
             tiles += "<div class=\"well well-sm\" style='white-space: nowrap; overflow: hidden;'>";
             tiles += "<p>" + code + "</p>";
-            tiles += "<small><font color=\"#cccccc\">" + date.toDateString() + "</font></small><h3>" + value + "<small> " + unit + "</small></h3>";
+            tiles += "<small><font color=\"#cccccc\">" + df.format(date) + "</font></small><h3>" + value + "<small> " + unit + "</small></h3>";
             tiles += "<span id=\"spark" + entry.resource.code.coding[0].code + "\">...</span>";
             tiles += "</div></div>";
         }
