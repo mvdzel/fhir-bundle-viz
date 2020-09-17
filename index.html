@@ -236,6 +236,7 @@ function displayBundle(data) {
                         row += "<td>" + df.format(new Date(entry.resource.onsetDateTime)) + "</td>";
                     }
                     row += "<td><span class=\"label label-default\">" + clinicalStatus + "</span> " + verificationStatus + "</td>";
+                    row += "<td>" + getContextEncounterLocation(data, entry) + "</td>";
                     row += "</tr>";
                     break;
                 case "MedicationRequest":
@@ -277,6 +278,9 @@ function displayBundle(data) {
                         row += "<li class=\"list-group-item\">" + _entry.resource.code.text + "</li>";
                     });
                     row += "</ul></td>";
+                    if (entry.resource.location && entry.resource.location[0].location.display) {
+                        row += "<td>" + formatLocation(entry.resource.location[0].location.display) + "</td>";
+                    }
                     row += "</tr>";
                     break;
                 case "Procedure":
@@ -289,6 +293,7 @@ function displayBundle(data) {
                         row += "<td></td>";
                     }
                     row += "<td><span class=\"label label-default\">" + entry.resource.status + "</span></td>";
+                    row += "<td>" + getContextEncounterLocation(data, entry) + "</td>";
                     row += "</tr>";
                     break;
                 case "Immunization":
@@ -326,6 +331,7 @@ function displayBundle(data) {
                         date = df.format(new Date(entry.resource.effectivePeriod.start)) + " - " + df.format(new Date(entry.resource.effectivePeriod.end));
                     }
                     row += "<td>" + date + "</td>";
+                    row += "<td>" + getContextEncounterLocation(data, entry) + "</td>";
                     row += "</tr>";
                     break;
                 case "Organization":
@@ -364,12 +370,14 @@ function displayBundle(data) {
                 case "CarePlan":
                     row += "<tr>";
                     row += "<td>" + entry.resource.category[0].text + "</td>";
+                    row += "<td>" + getContextEncounterLocation(data, entry) + "</td>";
                     row += "</tr>";
                     break;
                 case "ImagingStudy":
                     row += "<tr>";
                     row += "<td>" + entry.resource.series[0].modality.display + " (" + entry.resource.series[0].modality.code + ")</td>";
                     row += "<td>" + df.format(new Date(entry.resource.started)) + "</td>";
+                    row += "<td>" + getContextEncounterLocation(data, entry) + "</td>";
                     row += "</tr>";
                     break;
                 case "AllergyIntolerance":
@@ -377,6 +385,7 @@ function displayBundle(data) {
                     row += "<td>" + entry.resource.category[0] + "</td>";
                     row += "<td>" + entry.resource.code.coding[0].display + "</td>";
                     row += "<td>" + entry.resource.criticality + "</td>";
+                    row += "<td>" + getContextEncounterLocation(data, entry) + "</td>";
                     row += "</tr>";
                     break;
                 default:
@@ -583,6 +592,38 @@ function drawObsTiles(_containerName, _category) {
     Object.keys(sparkValues).forEach(code => {
         $("#spark" + code).sparkline(sparkValues[code], { disableTooltips: true });
     });
+}
+
+// Get location reference display from associated (context) Encounter
+function getContextEncounterLocation(data, entry) {
+    var location = "";
+    if (entry.resource.context) {
+        var encounter = data.entry.find(_entry => _entry.resource.resourceType == "Encounter" && _entry.fullUrl.endsWith(entry.resource.context.reference));
+        if (encounter.resource.location && encounter.resource.location[0].location.display) {
+            var _location = encounter.resource.location[0].location.display;
+            location = formatLocation(_location);
+        }
+    }
+    return location;
+}
+
+function formatLocation(_location) {
+    var location = "";
+    switch (_location) {
+                case "UMCG":
+                    location = "<span class=\"label label-primary\">" + _location + "</span>";
+                    break;
+                case "MARTINI":
+                    location = "<span class=\"label label-success\">" + _location + "</span>";
+                    break;
+                case "HA":
+                    location = "<span class=\"label label-info\">" + _location + "</span>";
+                    break;
+                default:
+                    location = "<span class=\"label\">" + _location + "</span>";
+                    break;
+            }
+    return location;
 }
 </script>
 
