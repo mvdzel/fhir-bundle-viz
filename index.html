@@ -7,7 +7,7 @@
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
   gtag('js', new Date());
-   gtag('config', 'UA-179273689-1');
+  gtag('config', 'UA-179273689-1');
   </script>
 
   <title>FHIR Bundle Viewer</title>
@@ -58,8 +58,8 @@
   </div>
 
 <script>
-var options = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' };
-var df = new Intl.DateTimeFormat('nl-NL', options);
+var df = new Intl.DateTimeFormat('nl-NL', { year: 'numeric', month: 'short', day: 'numeric' });
+var dtf = new Intl.DateTimeFormat('nl-NL', { year: 'numeric', month: 'short', day: 'numeric', hour: "2-digit", minute: "2-digit" });
 
 var _patientname;
 var _birthdate;
@@ -272,7 +272,7 @@ function displayBundle(data) {
                     row += "<tr>";
                     row += "<td>" + (entry.resource.type[0].text || "") + "</td>";
                     var ageAtEncounter = new Date(entry.resource.period.start).getFullYear() - _birthdate.getFullYear()
-                    row += "<td>" + df.format(new Date(entry.resource.period.start)) + " - " + df.format(new Date(entry.resource.period.end)) + " (" + ageAtEncounter + "jr)</td>";
+                    row += "<td>" + dtf.format(new Date(entry.resource.period.start)) + " - " + dtf.format(new Date(entry.resource.period.end)) + " (" + ageAtEncounter + "jr)</td>";
                     row += "<td><span class=\"label label-default\">" + entry.resource.status + "</span></td>";
                     row += "<td><span class=\"label label-default\">" + entry.resource.class.code + "</span></td>";
                     row += "<td><ol style=\"list-style: decimal inside;\">";
@@ -296,7 +296,7 @@ function displayBundle(data) {
                     row += "<tr>";
                     row += "<td>" + entry.resource.code.text + "</td>";
                     if (entry.resource.performedPeriod) {
-                        row += "<td>" + df.format(new Date(entry.resource.performedPeriod.start)) + " - " + df.format(new Date(entry.resource.performedPeriod.end)) + "</td>";
+                        row += "<td>" + dtf.format(new Date(entry.resource.performedPeriod.start)) + " - " + dtf.format(new Date(entry.resource.performedPeriod.end)) + "</td>";
                     }
                     else {
                         row += "<td></td>";
@@ -337,7 +337,7 @@ function displayBundle(data) {
                         date = df.format(new Date(entry.resource.effectiveDateTime));
                     }
                     else if (entry.resource.effectivePeriod) {
-                        date = df.format(new Date(entry.resource.effectivePeriod.start)) + " - " + df.format(new Date(entry.resource.effectivePeriod.end));
+                        date = dtf.format(new Date(entry.resource.effectivePeriod.start)) + " - " + dtf.format(new Date(entry.resource.effectivePeriod.end));
                     }
                     row += "<td>" + date + "</td>";
                     row += "<td>" + getContextEncounterLocation(data, entry) + "</td>";
@@ -545,7 +545,7 @@ function drawObsTiles(_containerName, _category) {
                     tiles += "<div class=\"col-md-2\">";
                     tiles += "<div class=\"well well-sm\" style='white-space: nowrap; overflow: hidden;'>";
                     tiles += "<p>" + ccode + "</p>";
-                    tiles += "<small><font color=\"#cccccc\">" + df.format(date) + "</font></small><h3>" + cvalue + "<small> " + cunit + "</small></h3>";
+                    tiles += "<small><font color=\"#888888\">" + df.format(date) + "</font></small><h3>" + cvalue + "<small> " + cunit + "</small></h3>";
                     tiles += "<span id=\"spark" + component.code.coding[0].code + "\">...</span>";
                     tiles += "</div></div>";
                 }
@@ -563,7 +563,7 @@ function drawObsTiles(_containerName, _category) {
             tiles += "<div class=\"col-md-2\">";
             tiles += "<div class=\"well well-sm\" style='white-space: nowrap; overflow: hidden;'>";
             tiles += "<p>" + code + "</p>";
-            tiles += "<small><font color=\"#cccccc\">" + df.format(date) + "</font></small><h3>" + value + "<small> " + unit + "</small></h3>";
+            tiles += "<small><font color=\"#888888\">" + df.format(date) + "</font></small><h3>" + value + "<small> " + unit + "</small></h3>";
             tiles += "<span id=\"spark" + entry.resource.code.coding[0].code + "\">...</span>";
             tiles += "</div></div>";
         }

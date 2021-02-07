@@ -16,7 +16,12 @@
       var issuer = getParameterByName("iss");
 
       if (issuer.indexOf("epic.com/") != -1) { // public EPIC
-        client_id = "6c12dff4-24e7-4475-a742-b08972c4ea27";
+        client_id = "173a8f49-98e3-4464-9cf4-4e288cfc877a";
+	//c7a574a6-bd42-4c10-8942-1b94fb4b29fb";        
+        scope = "patient/*.read";
+      }
+      else if (issuer.indexOf("logicahealth.com/") != -1) { // Logica
+        client_id = "5508f352-75e4-41a3-8aa7-af9ded811a90";
         scope = "patient/*.read";
       }
       else if (issuer.indexOf("cerner.com/") != -1) { // Cerner
