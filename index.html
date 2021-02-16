@@ -68,6 +68,10 @@ $(document).ready(function(){
     google.charts.load('current', {'packages':['timeline']});
     FHIR.oauth2.ready(function(smart){
         document.getElementById("controls").style.display = "none";
+        // assume Bearer token and copy to JQuery headers
+        $.ajaxSetup({
+            headers : { 'Authorization' : 'Bearer ' + smart.server.auth.token }
+        });        
         $.getJSON(smart.server.serviceUrl + "/Patient/" + smart.patient.id + "/$everything?_count=200", function(data, status){
             displayBundle(data);
             _data = data;

@@ -17,12 +17,13 @@
 
       if (issuer.indexOf("epic.com/") != -1) { // public EPIC
         client_id = "173a8f49-98e3-4464-9cf4-4e288cfc877a";
-	//c7a574a6-bd42-4c10-8942-1b94fb4b29fb";        
+	      //c7a574a6-bd42-4c10-8942-1b94fb4b29fb";        
         scope = "patient/*.read";
       }
       else if (issuer.indexOf("logicahealth.org/") != -1) { // Logica
-        client_id = "5508f352-75e4-41a3-8aa7-af9ded811a90";
-        scope = "patient/*.read";
+	      client_id = "3a5ab2a7-dc72-4c30-aecc-3f07cd83eee8";
+	      // Logica doesnot allow wildcard scope?
+        scope = "patient/Patient.read";
       }
       else if (issuer.indexOf("cerner.com/") != -1) { // Cerner
         client_id = "4f2e5a92-4801-4edc-a361-dd2866710c89";
@@ -31,8 +32,7 @@
       }
       else { // SmarthealthIT - SMART FHIR Starter
         client_id = "deb50b3b-1001-41bc-ac3d-727bf05532b0";
-        //client_id = "my_web_app";
-        scope = "user/*.read";
+        scope = "patient/*.read";
       }
 
       // Based on iss parameter select the client_id for that FHIR server
